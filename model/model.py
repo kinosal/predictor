@@ -58,15 +58,10 @@ from sklearn.linear_model import LinearRegression
 linear_regressor = LinearRegression()
 linear_regressor.fit(X_train, y_train)
 
-# Serialize (save) model
+# Save model
 from sklearn.externals import joblib
 joblib.dump(linear_regressor, 'model.pkl')
-print("Model dumped!")
-
-# Load model
-lr = joblib.load('model.pkl')
 
 # Save training columns
 model_columns = list(df.iloc[:, 1:].columns)
 joblib.dump(model_columns, 'model_columns.pkl')
-print("Models columns dumped!")
