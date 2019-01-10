@@ -8,10 +8,10 @@ pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 
 # Import dataset to a pandas dataframe
-df = pd.read_csv('phases_cpi.csv')
+df = pd.read_csv('phases_cpc.csv')
 
-# View summary
-summary = df.describe()
+# View metrics summary
+df.describe()
 
 # Drop rows where budget is 0,
 df = df[df.total_budget != 0]
@@ -24,13 +24,14 @@ df = df.drop(['facebook_interest'], axis=1)
 df = df.drop(['instagram_interest'], axis=1)
 df = df.drop(['google_search_volume'], axis=1)
 df = df.drop(['twitter_interest'], axis=1)
+df = df.drop(['facebook_likes'], axis=1)
 
 # Replace 0s with NaN where appropriate
-columns = ['facebook_likes']
-for column in columns:
-  df[column].replace(0, np.nan, inplace=True)
+# columns = ['facebook_likes']
+# for column in columns:
+#   df[column].replace(0, np.nan, inplace=True)
 
-# Put rare values and to bucket
+# Put rare values into buckets
 threshold = 0.05
 to_buckets = ['region', 'category', 'shop']
 for column in to_buckets:
@@ -43,14 +44,11 @@ for column in to_buckets:
 # Change custom shop to other
 df.loc[df['shop'] == 'custom', 'shop'] = 'other'
 
-# Describe again
-summary = df.describe()
-
 # Visualize distributions of numerical features
 quan = list(df.loc[:,df.dtypes != 'object'].columns.values)
 qual = list(df.loc[:,df.dtypes == 'object'].columns.values)
 temp = pd.melt(df, value_vars = quan)
-grid = sns.FacetGrid(temp, col = 'variable', col_wrap = 6, size = 3.0,
+grid = sns.FacetGrid(temp, col = 'variable', col_wrap = 6, height = 3.0,
                      aspect = 0.8, sharex = False, sharey = False)
 grid.map(sns.distplot, 'value')
 plt.show()
@@ -72,9 +70,9 @@ corr.sort_values(ascending = True)
 df.dropna(axis = 'index', inplace = True)
 
 # Encode categorical data
-df = pd.get_dummies(df, columns=['region', 'locality', 'category', 'shop', 'tracking'],
-                    prefix=['region', 'locality', 'category', 'shop', 'tracking'],
-                    drop_first=True)
+df = pd.get_dummies(df, columns = ['region', 'locality', 'category', 'shop', 'tracking'],
+                    prefix = ['region', 'locality', 'category', 'shop', 'tracking'],
+                    drop_first = True)
 
 # Specify dependent variable vector y and independent variable matrix X
 y = df.iloc[:, 0].values
@@ -100,7 +98,7 @@ from sklearn.linear_model import LinearRegression
 linear_regressor = LinearRegression()
 linear_regressor.fit(X_train, y_train)
 y_pred_lin = linear_regressor.predict(X_test)
-lin_accu = np.average(np.absolute(np.divide(y_pred_lin, y_test) - 1))
+lin_accu = 1 - np.average(np.divide(np.absolute(y_pred_lin - y_test), y_test))
 
 # Implement backward elimination with OLS
 import statsmodels.formula.api as smf
@@ -170,21 +168,21 @@ linear_regressor_elim = LinearRegression()
 linear_regressor_elim.fit(X_opt, y_train)
 X_test_elim = adjust_test(X_test, elim)
 y_pred_elim = linear_regressor_elim.predict(X_test_elim)
-elim_accu = np.average(np.absolute(np.divide(y_pred_elim, y_test) - 1))
+elim_accu = 1 - np.average(np.divide(np.absolute(y_pred_elim - y_test), y_test))
 
 # Decision tree regression (no feature scaling needed)
 from sklearn.tree import DecisionTreeRegressor
 tree_regressor = DecisionTreeRegressor(random_state = 0)
 tree_regressor.fit(X_train, y_train)
 y_pred_tree = tree_regressor.predict(X_test)
-tree_accu = np.average(np.absolute(np.divide(y_pred_tree, y_test) - 1))
+tree_accu = 1 - np.average(np.divide(np.absolute(y_pred_tree - y_test), y_test))
 
 # Random forest regression (no feature scaling needed)
 from sklearn.ensemble import RandomForestRegressor
 forest_regressor = RandomForestRegressor(n_estimators = 100, random_state = 0)
 forest_regressor.fit(X_train, y_train)
 y_pred_forest = forest_regressor.predict(X_test)
-forest_accu = np.average(np.absolute(np.divide(y_pred_forest, y_test) - 1))
+forest_accu = 1 - np.average(np.divide(np.absolute(y_pred_forest - y_test), y_test))
 
 # SVR (needs feature scaling)
 from sklearn.svm import SVR
@@ -207,4 +205,4 @@ svr_regressor = SVR(kernel = best_parameters['kernel'],
                     C = best_parameters['C'], gamma = best_parameters['gamma'])
 svr_regressor.fit(X_train_scaled, y_train_scaled)
 y_pred_svr = sc_y.inverse_transform(svr_regressor.predict(X_test_scaled))
-svr_accu = np.average(np.absolute(np.divide(y_pred_svr, y_test) - 1))
+svr_accu = 1 - np.average(np.divide(np.absolute(y_pred_svr - y_test), y_test))
