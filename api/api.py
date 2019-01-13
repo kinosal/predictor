@@ -38,21 +38,31 @@ if __name__ == '__main__':
 # Example JSON payload
 # [
 #     {
-#         "start_date": 190701,
-#         "end_date": 191231,
 #         "total_budget": 10000,
 #         "start_month": 7,
 #         "end_month": 12,
-#         "campaign_phase": 1,
+#         "days_before": 0,
 #         "days": 184,
 #         "facebook": 1,
 #         "instagram": 1,
 #         "google_search": 1,
 #         "google_display": 0,
 #         "twitter": 0,
-#         "region_germany": 1,
+#         "facebook_likes": 1000,
+#         "region_other": 0,
+#         "region_switzerland": 0,
 #         "locality_single": 1,
+#         "category_conference": 0,
 #         "category_music": 1,
-#         "shop_eventbrite": 1
+#         "category_other": 0,
+#         "category_tradefair": 0,
+#         "shop_eventbrite": 0,
+#         "shop_eventim": 0,
+#         "shop_other": 0,
+#         "shop_reservix": 0,
+#         "shop_showare": 0,
+#         "shop_stagelink": 1,
+#         "tracking_pu": 0,
+#         "tracking_pv": 1
 #     }
 # ]
