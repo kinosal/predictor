@@ -1,6 +1,5 @@
-flask
 zappa
+flask
 boto
+sklearn
 pandas
-numpy
-scikit-learn

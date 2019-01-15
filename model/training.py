@@ -1,10 +1,13 @@
+# Define dependent variable
+output = 'cost_per_impression'
+
 # Setup
 # Import standard libraries
 import numpy as np
 import pandas as pd
 
 # Import dataset to a pandas dataframe
-df = pd.read_csv('phases_cpi.csv')
+df = pd.read_csv(output + '.csv')
 
 # Preprocess data
 # Drop rows where budget is 0,
@@ -43,7 +46,8 @@ df.dropna(axis = 'index', inplace = True)
 # Encode categorical data
 df = pd.get_dummies(df, columns = ['region', 'locality', 'category', 'shop', 'tracking'],
                     prefix = ['region', 'locality', 'category', 'shop', 'tracking'],
-                    drop_first = True)
+                    drop_first = False)
+df = df.drop(['region_other', 'locality_multiple', 'category_other', 'shop_other', 'tracking_no'], axis=1)
 
 # Build models
 # Specify dependent variable vector y and independent variable matrix X
@@ -54,7 +58,7 @@ X = df.iloc[:, 1:]
 # Split dataset into training and test set
 from sklearn.model_selection import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(
-    df.drop(['cost_per_impression'], axis=1), df['cost_per_impression'],
+    df.drop([output], axis=1), df[output],
     test_size = 0.2, random_state = 0)
 
 # Scale features
@@ -84,11 +88,11 @@ linear_regressor = LinearRegression()
 # Decision tree regression (no feature scaling needed)
 from sklearn.tree import DecisionTreeRegressor
 tree_regressor = DecisionTreeRegressor()
-tree_parameters = [{'min_samples_split': [2, 3, 4, 5, 6],
+tree_parameters = [{'min_samples_split': [4, 5, 6, 7, 8],
                     'max_leaf_nodes': [4, 5, 6, 7, 8]}]
 tree_grid = GridSearchCV(estimator = tree_regressor,
                            param_grid = tree_parameters,
-                           scoring = 'neg_mean_absolute_error',
+                           scoring = mean_relative_score,
                            cv = 5,
                            n_jobs = -1)
 tree_grid_result = tree_grid.fit(X_train.drop(['start_date', 'end_date'], axis=1), y_train)
@@ -106,7 +110,7 @@ forest_parameters = [{'n_estimators': [100, 150, 200, 250],
                       'max_leaf_nodes': [4, 5, 6, 7, 8]}]
 forest_grid = GridSearchCV(estimator = forest_regressor,
                            param_grid = forest_parameters,
-                           scoring = 'neg_mean_absolute_error',
+                           scoring = mean_relative_score,
                            cv = 5,
                            n_jobs = -1)
 forest_grid_result = forest_grid.fit(X_train.drop(['start_date', 'end_date'], axis=1), y_train)
@@ -137,9 +141,9 @@ svr_regressor = SVR(kernel = best_svr_parameters['kernel'],
 
 # Evaluate models
 # Cross-validation score
-linear_score = np.mean(cross_val_score(estimator = linear_regressor, X = X_train, y = y_train, cv = 5, scoring = 'neg_mean_absolute_error'))
-tree_score = np.mean(cross_val_score(estimator = tree_regressor, X = X_train.drop(['start_date', 'end_date'], axis=1), y = y_train, cv = 5, scoring = 'neg_mean_absolute_error'))
-forest_score = np.mean(cross_val_score(estimator = forest_regressor, X = X_train.drop(['start_date', 'end_date'], axis=1), y = y_train, cv = 5, scoring = 'neg_mean_absolute_error'))
+linear_score = np.mean(cross_val_score(estimator = linear_regressor, X = X_train, y = y_train, cv = 5, scoring = mean_relative_score))
+tree_score = np.mean(cross_val_score(estimator = tree_regressor, X = X_train.drop(['start_date', 'end_date'], axis=1), y = y_train, cv = 5, scoring = mean_relative_score))
+forest_score = np.mean(cross_val_score(estimator = forest_regressor, X = X_train.drop(['start_date', 'end_date'], axis=1), y = y_train, cv = 5, scoring = mean_relative_score))
 svr_score = np.mean(cross_val_score(estimator = svr_regressor, X = X_train_scaled, y = y_train_scaled, cv = 5, scoring = 'neg_mean_absolute_error'))
 
 # Fit regressors on training set
@@ -149,7 +153,19 @@ forest_regressor.fit(X_train.drop(['start_date', 'end_date'], axis=1), y_train)
 svr_regressor.fit(X_train_scaled, y_train_scaled)
 
 # Predict test set results and calculate accuracy (1 - mean percentage error)
-lin_accu = mean_relative(linear_regressor.predict(X_test), y_test)
+linear_accu = mean_relative(linear_regressor.predict(X_test), y_test)
 tree_accu = mean_relative(tree_regressor.predict(X_test.drop(['start_date', 'end_date'], axis=1)), y_test)
 forest_accu = mean_relative(forest_regressor.predict(X_test.drop(['start_date', 'end_date'], axis=1)), y_test)
 svr_accu = mean_relative(sc_y.inverse_transform(svr_regressor.predict(X_test_scaled)), y_test)
+
+print('linear_score: ' + str(linear_score))
+print('tree_score: ' + str(tree_score))
+print('forest_score: ' + str(forest_score))
+print('svr_score: ' + str(svr_score))
+print('linear_accu: ' + str(linear_accu))
+print('tree_accu: ' + str(tree_accu))
+print('forest_accu: ' + str(forest_accu))
+print('svr_accu: ' + str(svr_accu))
+print('best_tree_parameters: ' + str(best_tree_parameters))
+print('best_forest_parameters: ' + str(best_forest_parameters))
+print('best_svr_parameters: ' + str(best_svr_parameters))

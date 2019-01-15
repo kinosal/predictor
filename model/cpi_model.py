@@ -1,10 +1,13 @@
+# Define dependent variable
+output = 'cost_per_impression'
+
 # Setup
 # Import standard libraries
 import numpy as np
 import pandas as pd
 
 # Import dataset to a pandas dataframe
-df = pd.read_csv('phases_cpi.csv')
+df = pd.read_csv(output + '.csv')
 
 # Preprocess data
 # Drop rows where budget is 0,
@@ -54,8 +57,8 @@ X = df.iloc[:, 1:]
 # Random forest regression (no feature scaling needed)
 from sklearn.ensemble import RandomForestRegressor
 forest_regressor = RandomForestRegressor(
-    n_estimators = 250,
-    min_samples_split = 5,
+    n_estimators = 150,
+    min_samples_split = 6,
     max_leaf_nodes = 7)
 forest_regressor.fit(X.drop(['start_date', 'end_date'], axis=1), y)
 
