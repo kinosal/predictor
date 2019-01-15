@@ -69,3 +69,8 @@ joblib.dump(forest_regressor, 'cpi_model.pkl')
 # Save training columns
 columns = list(df.drop(['start_date', 'end_date'], axis=1).iloc[:, 1:].columns)
 joblib.dump(columns, 'cpi_columns.pkl')
+
+# Predict and print results
+results = forest_regressor.predict(X.drop(['start_date', 'end_date'], axis=1)).round(4)
+for result in results:
+    print(result)
