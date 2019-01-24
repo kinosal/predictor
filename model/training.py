@@ -1,5 +1,5 @@
 # Define dependent variable
-output = 'cost_per_impression'
+output = 'cost_per_click'
 
 # Setup
 # Import standard libraries
@@ -40,6 +40,10 @@ for column in to_buckets:
 # Change custom shop to other
 df.loc[df['shop'] == 'custom', 'shop'] = 'other'
 
+# Change pu and pv tracking to yes
+df.loc[df['tracking'] == 'pu', 'tracking'] = 'yes'
+df.loc[df['tracking'] == 'pv', 'tracking'] = 'yes'
+
 # Drop rows with NaN values
 df.dropna(axis = 'index', inplace = True)
 
@@ -74,6 +78,7 @@ y_train_scaled = sc_y.fit_transform(y_train.values.reshape(-1, 1)).flatten()
 # Build and fit regressors
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import GridSearchCV
+
 # Make scorer
 from sklearn.metrics import make_scorer
 def mean_relative(y_pred, y_true):

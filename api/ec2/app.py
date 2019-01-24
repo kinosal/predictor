@@ -1,9 +1,22 @@
 from flask import Flask, request, jsonify
-from boto.s3.connection import S3Connection
 from sklearn.externals import joblib
+from boto.s3.connection import S3Connection
 import pandas as pd
+import config
 
 app = Flask(__name__)
+
+@app.route('/ping', methods=['POST'])
+def ping():
+    data = request.json
+    return jsonify({'ping': 'successful'})
+
+@app.route('/cpx', methods=['POST'])
+def cpx():
+    data = request.json
+    cpi = predict(data, 'cpi')
+    cpc = predict(data, 'cpc')
+    return jsonify({'cpi': cpi, 'cpc': cpc})
 
 @app.route('/cpi', methods=['POST'])
 def cpi():
@@ -25,7 +38,7 @@ def predict(data, cpx):
     return prediction
 
 def load_from_bucket(key):
-    connection = S3Connection()
+    connection = S3Connection(config.aws_access_key_id, config.aws_secret_access_key)
     bucket = connection.get_bucket('cpx-prediction')
     local_file = '/tmp/' + key
     bucket.get_key(key).get_contents_to_filename(local_file)
@@ -33,7 +46,9 @@ def load_from_bucket(key):
     return model
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run()
+
+# scp -i ~/.ssh/stagelink.pem app.py ubuntu@ec2-34-252-110-37.eu-west-1.compute.amazonaws.com:/home/ubuntu/cpx-prediction/app.py
 
 # Example JSON payload
 # [
@@ -62,7 +77,6 @@ if __name__ == '__main__':
 #         "shop_reservix": 0,
 #         "shop_showare": 0,
 #         "shop_stagelink": 1,
-#         "tracking_pu": 0,
-#         "tracking_pv": 1
+#         "tracking_yes": 1
 #     }
 # ]

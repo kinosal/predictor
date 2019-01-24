@@ -1,3 +1,6 @@
 .DS_Store
 .env
 *.csv
+config.py
+install-guide.txt
+*.conf

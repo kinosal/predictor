@@ -40,13 +40,18 @@ for column in to_buckets:
 # Change custom shop to other
 df.loc[df['shop'] == 'custom', 'shop'] = 'other'
 
+# Change pu and pv tracking to yes
+df.loc[df['tracking'] == 'pu', 'tracking'] = 'yes'
+df.loc[df['tracking'] == 'pv', 'tracking'] = 'yes'
+
 # Drop rows with NaN values
 df.dropna(axis = 'index', inplace = True)
 
 # Encode categorical data
 df = pd.get_dummies(df, columns = ['region', 'locality', 'category', 'shop', 'tracking'],
                     prefix = ['region', 'locality', 'category', 'shop', 'tracking'],
-                    drop_first = True)
+                    drop_first = False)
+df = df.drop(['region_other', 'locality_multiple', 'category_other', 'shop_other', 'tracking_no'], axis=1)
 
 # Build model
 # Specify dependent variable vector y and independent variable matrix X
@@ -57,7 +62,7 @@ X = df.iloc[:, 1:]
 # Random forest regression (no feature scaling needed)
 from sklearn.ensemble import RandomForestRegressor
 forest_regressor = RandomForestRegressor(
-    n_estimators = 150,
+    n_estimators = 200,
     min_samples_split = 6,
     max_leaf_nodes = 7)
 forest_regressor.fit(X.drop(['start_date', 'end_date'], axis=1), y)

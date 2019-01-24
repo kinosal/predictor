@@ -1,4 +1,3 @@
-zappa
 flask
 boto
 sklearn
