@@ -14,8 +14,8 @@ def ping():
 @app.route('/cpx', methods=['POST'])
 def cpx():
     data = request.json
-    cpi = predict(data, 'cpi')
-    cpc = predict(data, 'cpc')
+    cpi = predict(data, 'cost_per_impression')
+    cpc = predict(data, 'cost_per_click')
     return jsonify({'cpi': cpi, 'cpc': cpc})
 
 @app.route('/cpi', methods=['POST'])

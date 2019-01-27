@@ -1,23 +1,35 @@
-# python -c 'import training; training.train("impression")'
-# python -c 'import training; training.train("click")'
+# python -c 'import training; training.train("cost_per_impression", "pay_per_impression")'
 
-def train(metric):
-    # Define dependent variable
-    output = 'cost_per_' + metric
-    filter = 'pay_per_' + metric
+# Import secrets
+import config
 
-    # Setup
-    # Import standard libraries
-    import numpy as np
-    import pandas as pd
+# Import libraries
+import numpy as np
+import pandas as pd
+import psycopg2 as pg
+import pandas.io.sql as psql
+import boto3
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import make_scorer
+from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.svm import SVR
+from sklearn.externals import joblib
 
-    # Import phase data from Stagelink to pandas dataframe
-    import psycopg2 as pg
-    import pandas.io.sql as psql
-    import config
+def train(output, filter = None):
+    # Possible output values: 'cost_per_impression', 'cost_per_click', 'cost_per_purchase'
+    # Possible filter values: 'pay_per_impression', 'pay_per_click'
+
+    # Load phase data into dataframe
     connection = pg.connect(config.marketing_production)
-    select = \
-      'SELECT ' + output + ', ' + open('phases.sql', 'r').read() + filter + ' = 1'
+    if filter == None:
+        select = 'SELECT ' + output + ', ' + open('phases.sql', 'r').read()
+    else:
+        select = 'SELECT ' + output + ', ' + open('phases.sql', 'r').read() + 'AND ' + filter + ' = 1'
     df = pd.read_sql_query(select, connection)
 
     # Preprocess data
@@ -51,59 +63,62 @@ def train(metric):
     # Change custom shop to other
     df.loc[df['shop'] == 'custom', 'shop'] = 'other'
 
-    # Change pu and pv tracking to yes
-    df.loc[df['tracking'] == 'pu', 'tracking'] = 'yes'
-    df.loc[df['tracking'] == 'pv', 'tracking'] = 'yes'
+    # Change pu and pv tracking to yes unless predicting cost per purchase,
+    # else drop rows where tracking is no and then tracking column
+    if output != 'cost_per_purchase':
+        df.loc[df['tracking'] == 'pu', 'tracking'] = 'yes'
+        df.loc[df['tracking'] == 'pv', 'tracking'] = 'yes'
+    else:
+        df = df[df.tracking != 'no']
+        df = df.drop(['tracking'], axis=1)
 
     # Drop rows with NaN values
     df.dropna(axis = 'index', inplace = True)
 
     # Encode categorical data
-    df = pd.get_dummies(df, columns = ['region', 'locality', 'category', 'shop', 'tracking'],
-                        prefix = ['region', 'locality', 'category', 'shop', 'tracking'],
-                        drop_first = False)
-    df = df.drop(['region_other', 'locality_multiple', 'category_other',
-                  'shop_other', 'tracking_no'], axis=1)
+    if output != 'cost_per_purchase':
+        df = pd.get_dummies(df, columns = ['region', 'locality', 'category', 'shop', 'tracking'],
+                            prefix = ['region', 'locality', 'category', 'shop', 'tracking'],
+                            drop_first = False)
+        df = df.drop(['region_other', 'locality_multiple', 'category_other',
+                      'shop_other', 'tracking_no'], axis=1)
+    else:
+        df = pd.get_dummies(df, columns = ['region', 'locality', 'category', 'shop'],
+                            prefix = ['region', 'locality', 'category', 'shop'],
+                            drop_first = False)
+        df = df.drop(['region_other', 'locality_multiple', 'category_other',
+                      'shop_other'], axis=1)
 
     # Build models
     # Specify dependent variable vector y and independent variable matrix X
-    # Consider using .values for easier and more constistent modeling
     y = df.iloc[:, 0]
     X = df.iloc[:, 1:]
 
     # Split dataset into training and test set
-    from sklearn.model_selection import train_test_split
     X_train, X_test, y_train, y_test = train_test_split(
         df.drop([output], axis=1), df[output],
         test_size = 0.2, random_state = 0)
 
     # Scale features
-    from sklearn.preprocessing import StandardScaler
     sc_X = StandardScaler()
     X_scaled = sc_X.fit_transform(X.values.astype(float))
     X_train_scaled = sc_X.fit_transform(X_train.values.astype(float))
     X_test_scaled = sc_X.transform(X_test.values.astype(float))
     sc_y = StandardScaler()
-    y_scaled = sc_y.fit_transform(y.values.reshape(-1, 1)).flatten()
-    y_train_scaled = sc_y.fit_transform(y_train.values.reshape(-1, 1)).flatten()
+    y_scaled = sc_y.fit_transform(y.values.astype(float).reshape(-1, 1)).flatten()
+    y_train_scaled = sc_y.fit_transform(y_train.values.astype(float).reshape(-1, 1)).flatten()
 
     # Build and fit regressors
-    from sklearn.model_selection import cross_val_score
-    from sklearn.model_selection import GridSearchCV
-
     # Make scorer
-    from sklearn.metrics import make_scorer
     def mean_relative(y_pred, y_true):
       return 1 - np.mean(np.abs((y_pred - y_true) / y_true))
 
     mean_relative_score = make_scorer(mean_relative, greater_is_better = True)
 
     # Linear regression (library includes feature scaling)
-    from sklearn.linear_model import LinearRegression
     linear_regressor = LinearRegression()
 
     # Decision tree regression (no feature scaling needed)
-    from sklearn.tree import DecisionTreeRegressor
     tree_regressor = DecisionTreeRegressor()
     tree_parameters = [{'min_samples_split': [4, 5, 6, 7, 8],
                         'max_leaf_nodes': [4, 5, 6, 7, 8]}]
@@ -121,7 +136,6 @@ def train(metric):
                        max_leaf_nodes = best_tree_parameters['max_leaf_nodes'])
 
     # Random forest regression (no feature scaling needed)
-    from sklearn.ensemble import RandomForestRegressor
     forest_regressor = RandomForestRegressor()
     forest_parameters = [{'n_estimators': [100, 150, 200, 250],
                           'min_samples_split': [2, 3, 4, 5, 6],
@@ -141,11 +155,15 @@ def train(metric):
                        max_leaf_nodes = best_forest_parameters['max_leaf_nodes'])
 
     # SVR (needs feature scaling)
-    from sklearn.svm import SVR
+    def powerlist(start, times):
+        array = []
+        for i in range(0, times, 1):
+            array.append(start * 2 ** i)
+        return array
     svr_regressor = SVR()
-    svr_parameters = [{'C': [0.01, 0.1, 1, 10, 20, 30], 'kernel': ['linear']},
-                  {'C': [0.01, 0.1, 1, 10, 20, 30], 'kernel': ['poly'], 'degree': [2, 3, 4, 5], 'gamma': [0.001, 0.01, 0.1, 1]},
-                  {'C': [0.01, 0.1, 1, 10, 20, 30], 'kernel': ['rbf'], 'gamma': [0.001, 0.01, 0.1, 1]}]
+    svr_parameters = [{'C': powerlist(0.01, 15), 'kernel': ['linear']},
+                  {'C': powerlist(0.01, 15), 'kernel': ['poly'], 'degree': [2, 3, 4, 5], 'gamma': powerlist(0.0001, 15)},
+                  {'C': powerlist(0.01, 15), 'kernel': ['rbf'], 'gamma': powerlist(0.0001, 15), 'epsilon': powerlist(0.0001, 15)}]
     svr_grid = GridSearchCV(estimator = svr_regressor,
                             param_grid = svr_parameters,
                             scoring = 'neg_mean_absolute_error',
@@ -204,14 +222,12 @@ def train(metric):
     else:
         eval(best_regressor).fit(X, y)
 
-    # Save model and columns and upload to S3
-    from sklearn.externals import joblib
+    # Save model and columns to file
     joblib.dump(forest_regressor, output + '_model.pkl')
-
     columns = list(df.drop(['start_date', 'end_date'], axis=1).iloc[:, 1:].columns)
     joblib.dump(columns, output + '_columns.pkl')
 
-    import boto3
+    # Upload model and columns to S3
     s3 = boto3.client('s3')
     bucket_name = 'cpx-prediction'
     model_file = output + '_model.pkl'

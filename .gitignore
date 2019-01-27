@@ -5,3 +5,4 @@ config.py
 install-guide.txt
 *.conf
 __pycache__
+*.pkl

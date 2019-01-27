@@ -1,3 +1,5 @@
 numpy
 pandas
 sklearn
+psycopg2
+boto3
