@@ -21,13 +21,13 @@ def cpx():
 @app.route('/cpi', methods=['POST'])
 def cpi():
     data = request.json
-    prediction = predict(data, 'cpi')
+    prediction = predict(data, 'cost_per_impression')
     return jsonify({'cpi': prediction})
 
 @app.route('/cpc', methods=['POST'])
 def cpc():
     data = request.json
-    prediction = predict(data, 'cpc')
+    prediction = predict(data, 'cost_per_click')
     return jsonify({'cpc': prediction})
 
 def predict(data, cpx):

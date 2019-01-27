@@ -4,3 +4,4 @@
 config.py
 install-guide.txt
 *.conf
+__pycache__
