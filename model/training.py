@@ -223,7 +223,7 @@ def train(output, filter = None):
         eval(best_regressor).fit(X, y)
 
     # Save model and columns to file
-    joblib.dump(forest_regressor, output + '_model.pkl')
+    joblib.dump(eval(best_regressor), output + '_model.pkl')
     columns = list(df.drop(['start_date', 'end_date'], axis=1).iloc[:, 1:].columns)
     joblib.dump(columns, output + '_columns.pkl')
 
