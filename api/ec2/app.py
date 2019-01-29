@@ -57,6 +57,7 @@ if __name__ == '__main__':
 #         "start_month": 7,
 #         "end_month": 12,
 #         "days_before": 0,
+#         "budget_before": 0,
 #         "days": 184,
 #         "facebook": 1,
 #         "instagram": 1,

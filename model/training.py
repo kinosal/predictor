@@ -115,13 +115,20 @@ def train(output, filter = None):
 
     mean_relative_score = make_scorer(mean_relative, greater_is_better = True)
 
+    # Define helper function to create lists for search grids
+    def powerlist(start, times):
+        array = []
+        for i in range(0, times, 1):
+            array.append(start * 2 ** i)
+        return array
+
     # Linear regression (library includes feature scaling)
     linear_regressor = LinearRegression()
 
     # Decision tree regression (no feature scaling needed)
     tree_regressor = DecisionTreeRegressor()
-    tree_parameters = [{'min_samples_split': [4, 5, 6, 7, 8],
-                        'max_leaf_nodes': [4, 5, 6, 7, 8]}]
+    tree_parameters = [{'min_samples_split': list(range(2, 9, 1)),
+                        'max_leaf_nodes': list(range(2, 9, 1))}]
     tree_grid = GridSearchCV(estimator = tree_regressor,
                                param_grid = tree_parameters,
                                scoring = mean_relative_score,
@@ -137,9 +144,9 @@ def train(output, filter = None):
 
     # Random forest regression (no feature scaling needed)
     forest_regressor = RandomForestRegressor()
-    forest_parameters = [{'n_estimators': [100, 150, 200, 250],
-                          'min_samples_split': [2, 3, 4, 5, 6],
-                          'max_leaf_nodes': [4, 5, 6, 7, 8]}]
+    forest_parameters = [{'n_estimators': powerlist(10, 5),
+                          'min_samples_split': list(range(2, 9, 1)),
+                          'max_leaf_nodes': list(range(2, 9, 1))}]
     forest_grid = GridSearchCV(estimator = forest_regressor,
                                param_grid = forest_parameters,
                                scoring = mean_relative_score,
@@ -155,11 +162,6 @@ def train(output, filter = None):
                        max_leaf_nodes = best_forest_parameters['max_leaf_nodes'])
 
     # SVR (needs feature scaling)
-    def powerlist(start, times):
-        array = []
-        for i in range(0, times, 1):
-            array.append(start * 2 ** i)
-        return array
     svr_regressor = SVR()
     svr_parameters = [{'C': powerlist(0.01, 15), 'kernel': ['linear']},
                   {'C': powerlist(0.01, 15), 'kernel': ['poly'], 'degree': [2, 3, 4, 5], 'gamma': powerlist(0.0001, 15)},
@@ -224,7 +226,10 @@ def train(output, filter = None):
 
     # Save model and columns to file
     joblib.dump(eval(best_regressor), output + '_model.pkl')
-    columns = list(df.drop(['start_date', 'end_date'], axis=1).iloc[:, 1:].columns)
+    if best_regressor == 'tree_regressor' or best_regressor == 'forest_regressor':
+        columns = list(df.drop(['start_date', 'end_date'], axis=1).iloc[:, 1:].columns)
+    else:
+        columns = list(df.iloc[:, 1:].columns)
     joblib.dump(columns, output + '_columns.pkl')
 
     # Upload model and columns to S3
