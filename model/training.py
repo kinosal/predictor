@@ -223,12 +223,16 @@ def train(output, filter = None):
         eval(best_regressor).fit(X, y)
 
     # Save model and columns to file
-    joblib.dump(eval(best_regressor), output + '_' + filter + '_model.pkl')
     if best_regressor == 'tree_regressor' or best_regressor == 'forest_regressor':
         columns = list(df.drop(['start_date', 'end_date'], axis=1).iloc[:, 1:].columns)
     else:
         columns = list(df.iloc[:, 1:].columns)
-    joblib.dump(columns, output + '_' + filter + '_columns.pkl')
+    try:
+        joblib.dump(eval(best_regressor), output + '_' + filter + '_model.pkl')
+        joblib.dump(columns, output + '_' + filter + '_columns.pkl')
+    except TypeError:
+        joblib.dump(eval(best_regressor), output + '_model.pkl')
+        joblib.dump(columns, output + '_columns.pkl')
 
     # Upload model and columns to S3
     s3 = boto3.client('s3')
