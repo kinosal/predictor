@@ -217,7 +217,6 @@ def train(output, filter = None):
         'svr_regressor': svr_accu
     }
     best_regressor = max(accuracies, key=accuracies.get)
-    best_regressor = 'forest_regressor'
     if best_regressor == 'tree_regressor' or best_regressor == 'forest_regressor':
         eval(best_regressor).fit(X.drop(['start_date', 'end_date'], axis=1), y)
     else:
