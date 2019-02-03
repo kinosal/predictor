@@ -37,23 +37,20 @@ def train(output, filter = None):
     df = df[df.total_budget != 0]
 
     # Drop columns with more than 25% missing data
-    df = df.drop(['num_events'], axis=1)
-    df = df.drop(['ticket_capacity'], axis=1)
-    df = df.drop(['average_ticket_price'], axis=1)
-    df = df.drop(['facebook_interest'], axis=1)
-    df = df.drop(['instagram_interest'], axis=1)
-    df = df.drop(['google_search_volume'], axis=1)
-    df = df.drop(['twitter_interest'], axis=1)
+    rows = df[output].count()
+    for column in list(df.columns):
+        if df[column].count() < rows * 0.75:
+            df = df.drop([column], axis=1)
 
     # Replace 0s with NaN where appropriate
-    columns = ['facebook_likes']
-    for column in columns:
+    columns = ['num_events', 'ticket_capacity', 'average_ticket_price', 'facebook_likes']
+    for column in list(set(columns).intersection(list(df.columns))):
       df[column].replace(0, np.nan, inplace=True)
 
     # Put rare values into other bucket
     threshold = 0.05
     to_buckets = ['region', 'category', 'shop']
-    for column in to_buckets:
+    for column in list(set(to_buckets).intersection(list(df.columns))):
       results = df[column].count()
       groups = df.groupby([column])[column].count()
       for bucket in groups.index:
@@ -96,8 +93,7 @@ def train(output, filter = None):
 
     # Split dataset into training and test set
     X_train, X_test, y_train, y_test = train_test_split(
-        df.drop([output], axis=1), df[output],
-        test_size = 0.2, random_state = 0)
+        df.drop([output], axis=1), df[output], test_size = 0.2)
 
     # Scale features
     sc_X = StandardScaler()
@@ -140,7 +136,8 @@ def train(output, filter = None):
     best_tree_parameters = tree_grid_result.best_params_
     tree_regressor = DecisionTreeRegressor(
                        min_samples_split = best_tree_parameters['min_samples_split'],
-                       max_leaf_nodes = best_tree_parameters['max_leaf_nodes'])
+                       max_leaf_nodes = best_tree_parameters['max_leaf_nodes'],
+                       criterion = 'mae')
 
     # Random forest regression (no feature scaling needed)
     forest_regressor = RandomForestRegressor()
@@ -159,13 +156,14 @@ def train(output, filter = None):
     forest_regressor = RandomForestRegressor(
                        n_estimators = best_forest_parameters['n_estimators'],
                        min_samples_split = best_forest_parameters['min_samples_split'],
-                       max_leaf_nodes = best_forest_parameters['max_leaf_nodes'])
+                       max_leaf_nodes = best_forest_parameters['max_leaf_nodes'],
+                       criterion = 'mae')
 
     # SVR (needs feature scaling)
     svr_regressor = SVR()
     svr_parameters = [{'C': powerlist(0.01, 15), 'kernel': ['linear']},
                   {'C': powerlist(0.01, 15), 'kernel': ['poly'], 'degree': [2, 3, 4, 5], 'gamma': powerlist(0.0001, 15)},
-                  {'C': powerlist(0.01, 15), 'kernel': ['rbf'], 'gamma': powerlist(0.0001, 15), 'epsilon': powerlist(0.0001, 15)}]
+                  {'C': powerlist(0.01, 15), 'kernel': ['rbf'], 'gamma': powerlist(0.0001, 10), 'epsilon': powerlist(0.0001, 10)}]
     svr_grid = GridSearchCV(estimator = svr_regressor,
                             param_grid = svr_parameters,
                             scoring = 'neg_mean_absolute_error',
@@ -219,24 +217,25 @@ def train(output, filter = None):
         'svr_regressor': svr_accu
     }
     best_regressor = max(accuracies, key=accuracies.get)
+    best_regressor = 'forest_regressor'
     if best_regressor == 'tree_regressor' or best_regressor == 'forest_regressor':
         eval(best_regressor).fit(X.drop(['start_date', 'end_date'], axis=1), y)
     else:
         eval(best_regressor).fit(X, y)
 
     # Save model and columns to file
-    joblib.dump(eval(best_regressor), output + '_model.pkl')
+    joblib.dump(eval(best_regressor), output + '_' + filter + '_model.pkl')
     if best_regressor == 'tree_regressor' or best_regressor == 'forest_regressor':
         columns = list(df.drop(['start_date', 'end_date'], axis=1).iloc[:, 1:].columns)
     else:
         columns = list(df.iloc[:, 1:].columns)
-    joblib.dump(columns, output + '_columns.pkl')
+    joblib.dump(columns, output + '_' + filter + '_columns.pkl')
 
     # Upload model and columns to S3
     s3 = boto3.client('s3')
     bucket_name = 'cpx-prediction'
-    model_file = output + '_model.pkl'
-    columns_file = output + '_columns.pkl'
+    model_file = output + '_' + filter + '_model.pkl'
+    columns_file = output + '_' + filter + '_columns.pkl'
     s3.upload_file(model_file, bucket_name, model_file)
     s3.upload_file(columns_file, bucket_name, columns_file)
 
