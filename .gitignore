@@ -6,3 +6,4 @@ install-guide.txt
 *.conf
 __pycache__
 *.pkl
+*.pyc
