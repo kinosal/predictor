@@ -1,4 +1,7 @@
-# python -c 'import training; training.train("cost_per_impression", "pay_per_impression")'
+"""Run train(output, constraint) for full pipeline to train, select and save
+best model to predicting phase performance, e.g. "python -c 'import training;
+training.train("cost_per_impression", "pay_per_impression")'"
+"""
 
 # Import secrets
 import config
@@ -121,7 +124,7 @@ def preprocess(data, output):
 
 
 def build(X_train, y_train, X_train_scaled, y_train_scaled):
-    """Build models"""
+    """Build and return models"""
 
     # Define helper function to create lists for search grids
     def powerlist(start, times):
@@ -204,7 +207,7 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled):
 def evaluate(linear_regressor, tree_regressor, forest_regressor, svr_regressor,
              X_train, y_train, X_train_scaled, y_train_scaled,
              X_test, y_test, X_test_scaled, y_scaler):
-    """Evaluate models"""
+    """Evaluate models and return best regressor"""
 
     # Make scorer
     mean_relative_score = make_scorer(mean_relative, greater_is_better=True)
@@ -290,7 +293,7 @@ def upload(output, constraint):
 
 
 def print_results(regressor, X, y):
-    """Print actuals with predictions"""
+    """Print actuals and predictions"""
 
     if str(regressor).split('(')[0] in (
             'DecisionTreeRegressor', 'RandomForestRegressor'):
@@ -309,7 +312,8 @@ def print_results(regressor, X, y):
 
 
 def train(output, constraint=None):
-    """Possible output values:
+    """Complete training pipeline
+    Possible output values:
     'cost_per_impression', 'cost_per_click', 'cost_per_purchase', 'click_rate'
     Possible constraint values: 'pay_per_impression', 'pay_per_click'
     """
