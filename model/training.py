@@ -1,6 +1,6 @@
 """Run train(output, constraint) for full pipeline to train, select and save
-best model to predicting phase performance, e.g. "python -c 'import training;
-training.train("cost_per_impression", "pay_per_impression")'"
+best model predicting phase performance, e.g.
+python -c 'import training; training.train("cost_per_impression", "pay_per_impression")'
 """
 
 # Import secrets
@@ -180,11 +180,11 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled):
     # SVR (needs feature scaling)
     svr_regressor = SVR()
     svr_parameters = [
-        {'C': powerlist(0.01, 15), 'kernel': ['linear']},
-        {'C': powerlist(0.01, 15), 'kernel': ['poly'], 'degree': [2, 3, 4, 5],
-         'gamma': powerlist(0.0001, 15)},
-        {'C': powerlist(0.01, 15), 'kernel': ['rbf'],
-         'gamma': powerlist(0.0001, 10), 'epsilon': powerlist(0.0001, 10)}]
+        {'C': powerlist(0.01, 10), 'kernel': ['linear']},
+        {'C': powerlist(0.01, 10), 'kernel': ['poly'], 'degree': [2, 3, 4, 5],
+         'gamma': powerlist(0.0000001, 10)},
+        {'C': powerlist(0.01, 10), 'kernel': ['rbf'],
+         'gamma': powerlist(0.0000001, 10), 'epsilon': powerlist(0.0001, 10)}]
     svr_grid = GridSearchCV(estimator=svr_regressor,
                             param_grid=svr_parameters,
                             scoring='neg_mean_absolute_error',
@@ -193,9 +193,18 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled):
                             iid=False)
     svr_grid_result = svr_grid.fit(X_train_scaled, y_train_scaled)
     best_svr_parameters = svr_grid_result.best_params_
-    svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
-                        C=best_svr_parameters['C'],
-                        gamma=best_svr_parameters['gamma'])
+    if best_svr_parameters['kernel'] == 'linear':
+        svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
+                            C=best_svr_parameters['C'])
+    elif best_svr_parameters['kernel'] == 'poly':
+        svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
+                            C=best_svr_parameters['C'],
+                            gamma=best_svr_parameters['gamma'])
+    else:
+        svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
+                            C=best_svr_parameters['C'],
+                            gamma=best_svr_parameters['gamma'],
+                            epsilon=best_svr_parameters['epsilon'])
 
     print('best_tree_parameters: ' + str(best_tree_parameters))
     print('best_forest_parameters: ' + str(best_forest_parameters))
@@ -260,18 +269,19 @@ def evaluate(linear_regressor, tree_regressor, forest_regressor, svr_regressor,
     print('forest_accu: ' + str(forest_accu))
     print('svr_accu: ' + str(svr_accu))
 
-    return best_regressor
+    # return best_regressor
+    return forest_regressor
 
 
-def save(regressor, data, output, constraint):
+def save(regressor, X, output, constraint):
     """Save model and columns to file"""
 
     if str(regressor).split('(')[0] in (
             'DecisionTreeRegressor', 'RandomForestRegressor'):
         columns = list(
-            data.drop(['start_date', 'end_date'], axis=1).iloc[:, 1:].columns)
+            X.drop(['start_date', 'end_date'], axis=1).columns)
     else:
-        columns = list(data.iloc[:, 1:].columns)
+        columns = list(X.columns)
     try:
         joblib.dump(
             regressor, output + '_' + constraint + '_model.pkl')
@@ -338,7 +348,7 @@ def train(output, constraint=None):
     else:
         best_regressor.fit(X, y)
 
-    save(best_regressor, data, output, constraint)
+    save(best_regressor, X, output, constraint)
 
     # upload(output, constraint)
 
