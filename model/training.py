@@ -269,8 +269,7 @@ def evaluate(linear_regressor, tree_regressor, forest_regressor, svr_regressor,
     print('forest_accu: ' + str(forest_accu))
     print('svr_accu: ' + str(svr_accu))
 
-    # return best_regressor
-    return forest_regressor
+    return best_regressor
 
 
 def save(regressor, X, output, constraint):
