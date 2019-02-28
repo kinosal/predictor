@@ -25,7 +25,9 @@ from sklearn.externals import joblib
 
 
 def mean_relative(y_pred, y_true):
-    """Helper function to calculate mean relative deviation from two vectors"""
+    """Helper function to calculate mean relative deviation from two vectors
+    = 1 - mean percentage error
+    """
     return 1 - np.mean(np.abs((y_pred - y_true) / y_true))
 
 
@@ -44,8 +46,8 @@ def load(output, constraint):
 def preprocess(data, output):
     """Preprocess data"""
 
-    # Drop rows where total budget is 0,
-    data = data[data.total_budget != 0]
+    # Drop rows where budget is 0,
+    data = data[data.budget != 0]
 
     # Drop columns with more than 25% missing data
     rows = data[output].count()
@@ -113,14 +115,15 @@ def preprocess(data, output):
 
     # Scale features
     X_scaler = StandardScaler()
-    X_train_scaled = X_scaler.fit_transform(X_train.values.astype(float))
+    X_scaled = X_scaler.fit_transform(X.values.astype(float))
+    X_train_scaled = X_scaler.transform(X_train.values.astype(float))
     X_test_scaled = X_scaler.transform(X_test.values.astype(float))
     y_scaler = StandardScaler()
     y_train_scaled = y_scaler.fit_transform(
         y_train.values.astype(float).reshape(-1, 1)).flatten()
 
     return [X, y, X_train, y_train, X_test, y_test,
-            X_train_scaled, y_train_scaled, X_test_scaled, y_scaler]
+            X_scaled, X_train_scaled, y_train_scaled, X_test_scaled, y_scaler]
 
 
 def build(X_train, y_train, X_train_scaled, y_train_scaled):
@@ -133,25 +136,27 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled):
             array.append(start * 2 ** i)
         return array
 
-    # Make scorer
-    mean_relative_score = make_scorer(mean_relative, greater_is_better=True)
-
     # Linear regression (library includes feature scaling)
     linear_regressor = LinearRegression()
+    linear_score = np.mean(cross_val_score(
+        estimator=linear_regressor, X=X_train, y=y_train,
+        cv=5, scoring='r2'))
 
     # Decision tree regression (no feature scaling needed)
     tree_regressor = DecisionTreeRegressor()
     tree_parameters = [{'min_samples_split': list(range(2, 9, 1)),
-                        'max_leaf_nodes': list(range(2, 9, 1))}]
+                        'max_leaf_nodes': list(range(2, 9, 1)),
+                        'criterion': ['mae']}]
     tree_grid = GridSearchCV(estimator=tree_regressor,
                              param_grid=tree_parameters,
-                             scoring=mean_relative_score,
+                             scoring='r2',
                              cv=5,
                              n_jobs=-1,
                              iid=False)
     tree_grid_result = tree_grid.fit(
         X_train.drop(['start_date', 'end_date'], axis=1), y_train)
     best_tree_parameters = tree_grid_result.best_params_
+    tree_score = tree_grid_result.best_score_
     tree_regressor = DecisionTreeRegressor(
         min_samples_split=best_tree_parameters['min_samples_split'],
         max_leaf_nodes=best_tree_parameters['max_leaf_nodes'],
@@ -161,16 +166,18 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled):
     forest_regressor = RandomForestRegressor()
     forest_parameters = [{'n_estimators': powerlist(10, 5),
                           'min_samples_split': list(range(2, 9, 1)),
-                          'max_leaf_nodes': list(range(2, 9, 1))}]
+                          'max_leaf_nodes': list(range(2, 9, 1)),
+                          'criterion': ['mae']}]
     forest_grid = GridSearchCV(estimator=forest_regressor,
                                param_grid=forest_parameters,
-                               scoring=mean_relative_score,
+                               scoring='r2',
                                cv=5,
                                n_jobs=-1,
                                iid=False)
     forest_grid_result = forest_grid.fit(
         X_train.drop(['start_date', 'end_date'], axis=1), y_train)
     best_forest_parameters = forest_grid_result.best_params_
+    forest_score = forest_grid_result.best_score_
     forest_regressor = RandomForestRegressor(
         n_estimators=best_forest_parameters['n_estimators'],
         min_samples_split=best_forest_parameters['min_samples_split'],
@@ -187,12 +194,13 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled):
          'gamma': powerlist(0.0000001, 10), 'epsilon': powerlist(0.0001, 10)}]
     svr_grid = GridSearchCV(estimator=svr_regressor,
                             param_grid=svr_parameters,
-                            scoring='neg_mean_absolute_error',
+                            scoring='r2',
                             cv=5,
                             n_jobs=-1,
                             iid=False)
     svr_grid_result = svr_grid.fit(X_train_scaled, y_train_scaled)
     best_svr_parameters = svr_grid_result.best_params_
+    svr_score = svr_grid_result.best_score_
     if best_svr_parameters['kernel'] == 'linear':
         svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
                             C=best_svr_parameters['C'])
@@ -209,6 +217,10 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled):
     print('best_tree_parameters: ' + str(best_tree_parameters))
     print('best_forest_parameters: ' + str(best_forest_parameters))
     print('best_svr_parameters: ' + str(best_svr_parameters))
+    print('linear_r2_score: ' + str(linear_score))
+    print('tree_r2_score: ' + str(tree_score))
+    print('forest_r2_score: ' + str(forest_score))
+    print('svr_r2_score: ' + str(svr_score))
 
     return [linear_regressor, tree_regressor, forest_regressor, svr_regressor]
 
@@ -218,25 +230,6 @@ def evaluate(linear_regressor, tree_regressor, forest_regressor, svr_regressor,
              X_test, y_test, X_test_scaled, y_scaler):
     """Evaluate models and return best regressor"""
 
-    # Make scorer
-    mean_relative_score = make_scorer(mean_relative, greater_is_better=True)
-
-    # Calculate scores with cross validation
-    linear_score = np.mean(cross_val_score(
-        estimator=linear_regressor, X=X_train, y=y_train,
-        cv=5, scoring=mean_relative_score))
-    tree_score = np.mean(cross_val_score(
-        estimator=tree_regressor,
-        X=X_train.drop(['start_date', 'end_date'], axis=1), y=y_train,
-        cv=5, scoring=mean_relative_score))
-    forest_score = np.mean(cross_val_score(
-        estimator=forest_regressor,
-        X=X_train.drop(['start_date', 'end_date'], axis=1), y=y_train,
-        cv=5, scoring=mean_relative_score))
-    svr_score = np.mean(cross_val_score(
-        estimator=svr_regressor, X=X_train_scaled, y=y_train_scaled,
-        cv=5, scoring='neg_mean_absolute_error'))
-
     # Fit regressors on training set
     linear_regressor.fit(X_train, y_train)
     tree_regressor.fit(
@@ -245,29 +238,39 @@ def evaluate(linear_regressor, tree_regressor, forest_regressor, svr_regressor,
         X_train.drop(['start_date', 'end_date'], axis=1), y_train)
     svr_regressor.fit(X_train_scaled, y_train_scaled)
 
-    # Predict test set results and calculate accuracy
-    # (1 - mean percentage error)
-    linear_accu = mean_relative(linear_regressor.predict(X_test), y_test)
-    tree_accu = mean_relative(tree_regressor.predict(
-        X_test.drop(['start_date', 'end_date'], axis=1)), y_test)
-    forest_accu = mean_relative(forest_regressor.predict(
-        X_test.drop(['start_date', 'end_date'], axis=1)), y_test)
-    svr_accu = mean_relative(y_scaler.inverse_transform(svr_regressor.predict(
-        X_test_scaled)), y_test)
+    # Predict training results and calculate accuracy
+    linear_train_accu = mean_relative(linear_regressor.predict(
+        X_train), y_train)
+    tree_train_accu = mean_relative(tree_regressor.predict(
+        X_train.drop(['start_date', 'end_date'], axis=1)), y_train)
+    forest_train_accu = mean_relative(forest_regressor.predict(
+        X_train.drop(['start_date', 'end_date'], axis=1)), y_train)
+    svr_train_accu = mean_relative(y_scaler.inverse_transform(
+        svr_regressor.predict(X_train_scaled)), y_train)
 
-    accuracies = {'linear_regressor': linear_accu, 'tree_regressor': tree_accu,
-                  'forest_regressor': forest_accu, 'svr_regressor': svr_accu}
+    # Predict test results and calculate accuracy
+    linear_test_accu = mean_relative(linear_regressor.predict(X_test), y_test)
+    tree_test_accu = mean_relative(tree_regressor.predict(
+        X_test.drop(['start_date', 'end_date'], axis=1)), y_test)
+    forest_test_accu = mean_relative(forest_regressor.predict(
+        X_test.drop(['start_date', 'end_date'], axis=1)), y_test)
+    svr_test_accu = mean_relative(y_scaler.inverse_transform(
+        svr_regressor.predict(X_test_scaled)), y_test)
+
+    accuracies = {'linear_regressor': linear_test_accu,
+                  'tree_regressor': tree_test_accu,
+                  'forest_regressor': forest_test_accu,
+                  'svr_regressor': svr_test_accu}
     best_regressor = eval(max(accuracies, key=accuracies.get))
 
-    # Print model comparison
-    print('linear_score: ' + str(linear_score))
-    print('tree_score: ' + str(tree_score))
-    print('forest_score: ' + str(forest_score))
-    print('svr_score: ' + str(svr_score))
-    print('linear_accu: ' + str(linear_accu))
-    print('tree_accu: ' + str(tree_accu))
-    print('forest_accu: ' + str(forest_accu))
-    print('svr_accu: ' + str(svr_accu))
+    print('linear_train_accu: ' + str(linear_train_accu))
+    print('tree_train_accu: ' + str(tree_train_accu))
+    print('forest_train_accu: ' + str(forest_train_accu))
+    print('svr_train_accu: ' + str(svr_train_accu))
+    print('linear_test_accu: ' + str(linear_test_accu))
+    print('tree_test_accu: ' + str(tree_test_accu))
+    print('forest_test_accu: ' + str(forest_test_accu))
+    print('svr_test_accu: ' + str(svr_test_accu))
 
     return best_regressor
 
@@ -301,13 +304,16 @@ def upload(output, constraint):
     s3_connection.upload_file(columns_file, bucket_name, columns_file)
 
 
-def print_results(regressor, X, y):
+def print_results(regressor, X, X_scaled, y, y_scaler):
     """Print actuals and predictions"""
 
     if str(regressor).split('(')[0] in (
             'DecisionTreeRegressor', 'RandomForestRegressor'):
         predictions = regressor.predict(
             X.drop(['start_date', 'end_date'], axis=1)).round(4)
+    elif str(regressor).split('(')[0] == 'SVR':
+        predictions = y_scaler.inverse_transform(
+            regressor.predict(X_scaled)).round(4)
     else:
         predictions = regressor.predict(X).round(4)
 
@@ -330,7 +336,7 @@ def train(output, constraint=None):
     data = load(output, constraint)
 
     [X, y, X_train, y_train, X_test, y_test,
-     X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
+     X_scaled, X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
         = preprocess(data, output)
 
     [linear_regressor, tree_regressor, forest_regressor, svr_regressor] \
@@ -351,4 +357,4 @@ def train(output, constraint=None):
 
     # upload(output, constraint)
 
-    print_results(best_regressor, X, y)
+    print_results(best_regressor, X, X_scaled, y, y_scaler)
