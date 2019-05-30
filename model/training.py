@@ -10,18 +10,16 @@ import config
 import numpy as np
 import pandas as pd
 import psycopg2 as pg
-import pandas.io.sql as psql
 import boto3
+import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import make_scorer
 from sklearn.linear_model import LinearRegression
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
-from sklearn.externals import joblib
 
 
 def mean_relative(y_pred, y_true):

@@ -1,9 +1,7 @@
 .DS_Store
 .env
-*.csv
 config.py
-install-guide.txt
-*.conf
+zappa_settings.json
 __pycache__
 *.pkl
 *.pyc

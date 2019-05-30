@@ -1,15 +1,18 @@
 from flask import Flask, request, jsonify
-from sklearn.externals import joblib
 from boto.s3.connection import S3Connection
 import pandas as pd
+import joblib
 import config
 
+
 app = Flask(__name__)
+
 
 @app.route('/ping', methods=['POST'])
 def ping():
     data = request.json
     return jsonify({'ping': 'successful'})
+
 
 @app.route('/cpx', methods=['POST'])
 def cpx():
@@ -17,6 +20,7 @@ def cpx():
     cpi = predict(data, 'cost_per_impression')
     cpc = predict(data, 'cost_per_click')
     return jsonify({'cpi': cpi[0], 'cpc': cpc[0]})
+
 
 @app.route('/cpi', methods=['POST'])
 def cpi():
@@ -29,6 +33,7 @@ def cpi():
     clicks = (impressions * ctr).round(0)
     return jsonify({'cpi': cpi, 'impressions': impressions, 'clicks': clicks})
 
+
 @app.route('/cpc', methods=['POST'])
 def cpc():
     data = request.json
@@ -39,6 +44,7 @@ def cpc():
     clicks = (budget / cpc).round(0)
     impressions = (clicks / ctr).round(0)
     return jsonify({'cpc': cpc, 'impressions': impressions, 'clicks': clicks})
+
 
 def predict(data, output):
     filter = 'pay_per_' + output[9:]
@@ -52,18 +58,21 @@ def predict(data, output):
     ctr_prediction = ctr_model.predict(ctr_set)[0].round(4)
     return [cpx_prediction, ctr_prediction]
 
+
 def load_from_bucket(key):
-    connection = S3Connection(config.aws_access_key_id, config.aws_secret_access_key)
+    connection = S3Connection(aws_access_key_id=config.aws_access_key_id,
+                              aws_secret_access_key=config.aws_secret_access_key,
+                              is_secure=False)
     bucket = connection.get_bucket('cpx-prediction')
     local_file = '/tmp/' + key
     bucket.get_key(key).get_contents_to_filename(local_file)
     model = joblib.load(local_file)
     return model
 
+
 if __name__ == '__main__':
     app.run()
 
-# scp -i ~/.ssh/stagelink.pem app.py ubuntu@ec2-34-252-110-37.eu-west-1.compute.amazonaws.com:/home/ubuntu/cpx-prediction/app.py
 
 # Example JSON payload
 # [
@@ -72,7 +81,6 @@ if __name__ == '__main__':
 #         "start_month": 7,
 #         "end_month": 12,
 #         "days_before": 0,
-#         "budget_before": 0,
 #         "days": 184,
 #         "facebook": 1,
 #         "instagram": 1,
@@ -80,9 +88,6 @@ if __name__ == '__main__':
 #         "google_display": 0,
 #         "twitter": 0,
 #         "facebook_likes": 1000,
-#         "num_events": 1,
-#         "ticket_capacity": 10000,
-#         "average_ticket_price": 50,
 #         "region_germany": 1,
 #         "region_switzerland": 0,
 #         "locality_single": 1,

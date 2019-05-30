@@ -1,6 +1,6 @@
-numpy
+flask
+zappa
 pandas
 sklearn
 joblib
-psycopg2
-boto3
+boto

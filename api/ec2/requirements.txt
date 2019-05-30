@@ -1,4 +1,0 @@
-flask
-boto
-sklearn
-pandas
