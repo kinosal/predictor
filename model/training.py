@@ -1,6 +1,6 @@
 """Run train(output, constraint) for full pipeline to train, select and save
 best model predicting phase performance, e.g.
-python -c 'import training; training.train("cost_per_impression", "pay_per_impression")'
+python -c 'import training; training.train("campaigns", "impressions")'
 """
 
 # Import secrets
@@ -29,7 +29,7 @@ def mean_relative(y_pred, y_true):
     return 1 - np.mean(np.abs((y_pred - y_true) / y_true))
 
 
-def load(output, constraint):
+def load_phases(output, constraint):
     """Load phase data into dataframe"""
 
     connection = pg.connect(config.marketing_production)
@@ -41,11 +41,21 @@ def load(output, constraint):
     return pd.read_sql_query(select, connection)
 
 
+def load_campaigns(output):
+    """Load campaign data into dataframe"""
+
+    connection = pg.connect(config.marketing_production)
+    select = 'SELECT SUM(results.' + output + ') AS ' + output + ',' + \
+             open('campaigns.sql', 'r').read()
+    return pd.read_sql_query(select, connection)
+
+
 def preprocess(data, output):
     """Preprocess data"""
 
-    # Drop rows where budget is 0,
-    data = data[data.budget != 0]
+    # Drop rows where budget is 0
+    if 'budget' in data.columns:
+        data = data[data.budget != 0]
 
     # Drop columns with more than 25% missing data
     rows = data[output].count()
@@ -68,9 +78,6 @@ def preprocess(data, output):
         for bucket in groups.index:
             if groups.loc[bucket] < results * threshold:
                 data.loc[data[column] == bucket, column] = 'other'
-
-    # Change custom shop to other
-    data.loc[data['shop'] == 'custom', 'shop'] = 'other'
 
     # Change pu and pv tracking to yes unless predicting cost per purchase,
     # else drop rows where tracking is no and then tracking column
@@ -151,8 +158,7 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled):
                              cv=5,
                              n_jobs=-1,
                              iid=False)
-    tree_grid_result = tree_grid.fit(
-        X_train.drop(['start_date', 'end_date'], axis=1), y_train)
+    tree_grid_result = tree_grid.fit(X_train, y_train)
     best_tree_parameters = tree_grid_result.best_params_
     tree_score = tree_grid_result.best_score_
     tree_regressor = DecisionTreeRegressor(
@@ -172,8 +178,7 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled):
                                cv=5,
                                n_jobs=-1,
                                iid=False)
-    forest_grid_result = forest_grid.fit(
-        X_train.drop(['start_date', 'end_date'], axis=1), y_train)
+    forest_grid_result = forest_grid.fit(X_train, y_train)
     best_forest_parameters = forest_grid_result.best_params_
     forest_score = forest_grid_result.best_score_
     forest_regressor = RandomForestRegressor(
@@ -230,28 +235,23 @@ def evaluate(linear_regressor, tree_regressor, forest_regressor, svr_regressor,
 
     # Fit regressors on training set
     linear_regressor.fit(X_train, y_train)
-    tree_regressor.fit(
-        X_train.drop(['start_date', 'end_date'], axis=1), y_train)
-    forest_regressor.fit(
-        X_train.drop(['start_date', 'end_date'], axis=1), y_train)
+    tree_regressor.fit(X_train, y_train)
+    forest_regressor.fit(X_train, y_train)
     svr_regressor.fit(X_train_scaled, y_train_scaled)
 
     # Predict training results and calculate accuracy
     linear_train_accu = mean_relative(linear_regressor.predict(
         X_train), y_train)
-    tree_train_accu = mean_relative(tree_regressor.predict(
-        X_train.drop(['start_date', 'end_date'], axis=1)), y_train)
-    forest_train_accu = mean_relative(forest_regressor.predict(
-        X_train.drop(['start_date', 'end_date'], axis=1)), y_train)
+    tree_train_accu = mean_relative(tree_regressor.predict(X_train), y_train)
+    forest_train_accu = mean_relative(forest_regressor.predict(X_train),
+                                      y_train)
     svr_train_accu = mean_relative(y_scaler.inverse_transform(
         svr_regressor.predict(X_train_scaled)), y_train)
 
     # Predict test results and calculate accuracy
     linear_test_accu = mean_relative(linear_regressor.predict(X_test), y_test)
-    tree_test_accu = mean_relative(tree_regressor.predict(
-        X_test.drop(['start_date', 'end_date'], axis=1)), y_test)
-    forest_test_accu = mean_relative(forest_regressor.predict(
-        X_test.drop(['start_date', 'end_date'], axis=1)), y_test)
+    tree_test_accu = mean_relative(tree_regressor.predict(X_test), y_test)
+    forest_test_accu = mean_relative(forest_regressor.predict(X_test), y_test)
     svr_test_accu = mean_relative(y_scaler.inverse_transform(
         svr_regressor.predict(X_test_scaled)), y_test)
 
@@ -276,12 +276,7 @@ def evaluate(linear_regressor, tree_regressor, forest_regressor, svr_regressor,
 def save(regressor, X, output, constraint):
     """Save model and columns to file"""
 
-    if str(regressor).split('(')[0] in (
-            'DecisionTreeRegressor', 'RandomForestRegressor'):
-        columns = list(
-            X.drop(['start_date', 'end_date'], axis=1).columns)
-    else:
-        columns = list(X.columns)
+    columns = list(X.columns)
     try:
         joblib.dump(
             regressor, output + '_' + constraint + '_model.pkl')
@@ -305,11 +300,7 @@ def upload(output, constraint):
 def print_results(regressor, X, X_scaled, y, y_scaler):
     """Print actuals and predictions"""
 
-    if str(regressor).split('(')[0] in (
-            'DecisionTreeRegressor', 'RandomForestRegressor'):
-        predictions = regressor.predict(
-            X.drop(['start_date', 'end_date'], axis=1)).round(4)
-    elif str(regressor).split('(')[0] == 'SVR':
+    if str(regressor).split('(')[0] == 'SVR':
         predictions = y_scaler.inverse_transform(
             regressor.predict(X_scaled)).round(4)
     else:
@@ -324,14 +315,17 @@ def print_results(regressor, X, X_scaled, y, y_scaler):
         print(prediction)
 
 
-def train(output, constraint=None):
+def train(category, output, constraint=None):
     """Complete training pipeline
     Possible output values:
     'cost_per_impression', 'cost_per_click', 'cost_per_purchase', 'click_rate'
     Possible constraint values: 'pay_per_impression', 'pay_per_click'
     """
 
-    data = load(output, constraint)
+    if category == 'phases':
+        data = load_phases(output, constraint)
+    elif category == 'campaigns':
+        data = load_campaigns(output)
 
     [X, y, X_train, y_train, X_test, y_test,
      X_scaled, X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
@@ -345,11 +339,7 @@ def train(output, constraint=None):
         X_train, y_train, X_train_scaled, y_train_scaled, X_test, y_test,
         X_test_scaled, y_scaler)
 
-    if str(best_regressor).split('(')[0] in (
-            'DecisionTreeRegressor', 'RandomForestRegressor'):
-        best_regressor.fit(X.drop(['start_date', 'end_date'], axis=1), y)
-    else:
-        best_regressor.fit(X, y)
+    best_regressor.fit(X, y)
 
     save(best_regressor, X, output, constraint)
 
