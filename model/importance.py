@@ -1,6 +1,6 @@
-"""Run calculate_importance(output, constraint, method) to return
+"""Run calculate_importance(output, method) to return
 feature importance dataframe, e.g.
-python -c 'import importance; importance.calculate("cost_per_impression", "pay_per_impression", "base")'
+python -c 'import importance; importance.calculate("cost_per_impression", "base")'
 """
 
 import numpy as np
@@ -10,15 +10,15 @@ import training
 
 
 def create_dataframe(columns, values):
-    """Helper functions to create dataframe from column and value lists"""
+    """Helper function to create dataframe from column and value lists"""
     return pd.DataFrame({'column': columns, 'value': values}) \
              .sort_values('value', ascending=False) \
              .reset_index(drop=True)
 
 
-def calculate(output, constraint=None, method='base'):
+def calculate(output, method='base'):
     """Determine importance for features of used best model"""
-    data = training.load(output, constraint)
+    data = training.load_data(output)
 
     # Add random column to data
     np.random.seed(seed=0)
@@ -40,18 +40,10 @@ def calculate(output, constraint=None, method='base'):
         if str(best_regressor).split('(')[0] == 'SVR':
             print('Base method not available for SVR')
             return
-        elif str(best_regressor).split('(')[0] in (
-                'DecisionTreeRegressor', 'RandomForestRegressor'):
-            best_regressor.fit(X_train.drop(
-                ['start_date', 'end_date'], axis=1), y_train)
-            importances_df = create_dataframe(
-                columns=X_train.drop(['start_date', 'end_date'], axis=1).columns,
-                values=best_regressor.feature_importances_)
-        else:
-            best_regressor.fit(X_train, y_train)
-            importances_df = create_dataframe(
-                columns=X_train.columns,
-                values=best_regressor.feature_importances_)
+        best_regressor.fit(X_train, y_train)
+        importances_df = create_dataframe(
+            columns=X_train.columns,
+            values=best_regressor.feature_importances_)
 
     elif method == 'clone':
         # Clone initially trained model
@@ -66,27 +58,14 @@ def calculate(output, constraint=None, method='base'):
             benchmark_score = training.mean_relative(
                 y_scaler.inverse_transform(
                     svr_regressor.predict(X_train_scaled)), y_train)
-        elif str(best_regressor).split('(')[0] in (
-                'DecisionTreeRegressor', 'RandomForestRegressor'):
-            model_clone.fit(
-                X_train.drop(['start_date', 'end_date'], axis=1), y_train)
-            benchmark_score = training.mean_relative(model_clone.predict(
-                X_train.drop(['start_date', 'end_date'], axis=1)), y_train)
         else:
             model_clone.fit(X_train, y_train)
             benchmark_score = training.mean_relative(
                 model_clone.predict(X_train), y_train)
 
-        # Create list to store feature importances
-        importances = []
-
         # Calculate and store feature importance benchmark deviation
-        if str(best_regressor).split('(')[0] in (
-                'DecisionTreeRegressor', 'RandomForestRegressor'):
-            columns = X_train.drop(['start_date', 'end_date'], axis=1).columns
-        else:
-            columns = X_train.columns
-
+        importances = []
+        columns = X_train.columns
         i = 0
         for column in columns:
             model_clone = clone(best_regressor)
@@ -95,13 +74,6 @@ def calculate(output, constraint=None, method='base'):
                 model_clone.fit(X_train_scaled[0:i, i+1:-1], y_train_scaled)
                 drop_col_score = training.mean_relative(model_clone.predict(
                     X_train_scaled[0:i, i+1:-1]), y_train_scaled)
-            elif str(best_regressor).split('(')[0] in (
-                    'DecisionTreeRegressor', 'RandomForestRegressor'):
-                model_clone.fit(X_train.drop(
-                    ['start_date', 'end_date', column], axis=1), y_train)
-                drop_col_score = training.mean_relative(
-                    model_clone.predict(X_train.drop(
-                        ['start_date', 'end_date', column], axis=1)), y_train)
             else:
                 model_clone.fit(X_train.drop(column, axis=1), y_train)
                 drop_col_score = training.mean_relative(
@@ -109,14 +81,8 @@ def calculate(output, constraint=None, method='base'):
             importances.append(benchmark_score - drop_col_score)
             i += 1
 
-        if str(best_regressor).split('(')[0] in (
-                'DecisionTreeRegressor', 'RandomForestRegressor'):
-            importances_df = create_dataframe(
-                columns=X_train.drop(['start_date', 'end_date'], axis=1).columns,
-                values=importances)
-        else:
-            importances_df = create_dataframe(
-                columns=X_train.columns, values=importances)
+        importances_df = create_dataframe(
+            columns=X_train.columns, values=importances)
 
     print('importances:')
     for i in range(0, len(importances_df)):

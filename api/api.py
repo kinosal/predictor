@@ -10,53 +10,27 @@ app = Flask(__name__)
 
 @app.route('/ping', methods=['POST'])
 def ping():
-    data = request.json
     return jsonify({'ping': 'successful'})
 
 
-@app.route('/cpx', methods=['POST'])
-def cpx():
+@app.route('/<metric>', methods=['POST'])
+def process(metric):
+    if metric not in ['impressions', 'clicks', 'cost_per_impression',
+                      'cost_per_click']:
+        return 'Metric "' + metric + '" not supported. Currently ' + \
+               'supported metrics are "impressions", "clicks", ' + \
+               '"cost_per_impression" and "cost_per_click".'
     data = request.json
-    cpi = predict(data, 'cost_per_impression')
-    cpc = predict(data, 'cost_per_click')
-    return jsonify({'cpi': cpi[0], 'cpc': cpc[0]})
-
-
-@app.route('/cpi', methods=['POST'])
-def cpi():
-    data = request.json
-    prediction = predict(data, 'cost_per_impression')
-    cpi = prediction[0]
-    ctr = prediction[1]
-    budget = data[0]['total_budget']
-    impressions = (budget / cpi).round(0)
-    clicks = (impressions * ctr).round(0)
-    return jsonify({'cpi': cpi, 'impressions': impressions, 'clicks': clicks})
-
-
-@app.route('/cpc', methods=['POST'])
-def cpc():
-    data = request.json
-    prediction = predict(data, 'cost_per_click')
-    cpc = prediction[0]
-    ctr = prediction[1]
-    budget = data[0]['total_budget']
-    clicks = (budget / cpc).round(0)
-    impressions = (clicks / ctr).round(0)
-    return jsonify({'cpc': cpc, 'impressions': impressions, 'clicks': clicks})
+    prediction = predict(data, metric)
+    return jsonify({metric: prediction})
 
 
 def predict(data, output):
-    filter = 'pay_per_' + output[9:]
-    cpx_model = load_from_bucket(output + '_' + filter + '_model.pkl')
-    cpx_columns = load_from_bucket(output + '_' + filter + '_columns.pkl')
-    ctr_model = load_from_bucket('click_rate_' + filter + '_model.pkl')
-    ctr_columns = load_from_bucket('click_rate_' + filter + '_columns.pkl')
-    cpx_set = pd.DataFrame(data).reindex(columns=cpx_columns, fill_value=0)
-    ctr_set = pd.DataFrame(data).reindex(columns=ctr_columns, fill_value=0)
-    cpx_prediction = cpx_model.predict(cpx_set)[0].round(4)
-    ctr_prediction = ctr_model.predict(ctr_set)[0].round(4)
-    return [cpx_prediction, ctr_prediction]
+    model = load_from_bucket(output + '_model.pkl')
+    columns = load_from_bucket(output + '_columns.pkl')
+    data = pd.DataFrame(data).reindex(columns=columns, fill_value=0)
+    prediction = model.predict(data)[0].round(4)
+    return prediction
 
 
 def load_from_bucket(key):
@@ -77,24 +51,28 @@ if __name__ == '__main__':
 # Example JSON payload
 # [
 #     {
-#         "total_budget": 10000,
+#         "cost": 10000,
 #         "start_month": 7,
 #         "end_month": 12,
-#         "days_before": 0,
+#         "start_week": 25,
+#         "end_week": 50,
 #         "days": 184,
+#         "ticket_capacity": 10000,
+#         "average_ticket_price": 50,
 #         "facebook": 1,
 #         "instagram": 1,
 #         "google_search": 1,
 #         "google_display": 0,
-#         "twitter": 0,
 #         "facebook_likes": 1000,
 #         "region_germany": 1,
 #         "region_switzerland": 0,
 #         "locality_single": 1,
 #         "category_comedy": 0,
-#         "category_conference": 0,
-#         "category_music": 1,
-#         "category_tradefair": 0,
+#         "category_concert": 0,
+#         "category_conference": 1,
+#         "category_ecommerce": 0,
+#         "category_festival": 0,
+#         "category_theatre": 0,
 #         "shop_actnews": 0,
 #         "shop_eventbrite": 0,
 #         "shop_eventim": 0,

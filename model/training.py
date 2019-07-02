@@ -1,6 +1,6 @@
-"""Run train(output, constraint) for full pipeline to train, select and save
-best model predicting phase performance, e.g.
-python -c 'import training; training.train("campaigns", "impressions")'
+"""Run train(output) for full pipeline to train, select and save
+best model predicting campaign performance, e.g.
+python -c 'import training; training.train("impressions")'
 """
 
 # Import secrets
@@ -29,24 +29,15 @@ def mean_relative(y_pred, y_true):
     return 1 - np.mean(np.abs((y_pred - y_true) / y_true))
 
 
-def load_phases(output, constraint):
-    """Load phase data into dataframe"""
-
+def load_data(output):
+    """Load campaign data into dataframe from Postgres database"""
     connection = pg.connect(config.marketing_production)
-    if constraint is None:
-        select = 'SELECT ' + output + ', ' + open('phases.sql', 'r').read()
-    else:
-        select = 'SELECT ' + output + ', ' + open('phases.sql', 'r').read() + \
-                 'AND ' + constraint + ' = 1'
-    return pd.read_sql_query(select, connection)
-
-
-def load_campaigns(output):
-    """Load campaign data into dataframe"""
-
-    connection = pg.connect(config.marketing_production)
-    select = 'SELECT SUM(results.' + output + ') AS ' + output + ',' + \
-             open('campaigns.sql', 'r').read()
+    if output in ['impressions', 'clicks', 'purchases']:
+        output = 'SUM(results.' + output + ') AS ' + output
+    elif 'cost_per' in output:
+        output = 'SUM(results.cost) / SUM(results.' + \
+                 output.replace('cost_per_', '') + 's) AS ' + output
+    select = 'SELECT ' + output + ', ' + open('campaigns.sql', 'r').read()
     return pd.read_sql_query(select, connection)
 
 
@@ -273,26 +264,18 @@ def evaluate(linear_regressor, tree_regressor, forest_regressor, svr_regressor,
     return best_regressor
 
 
-def save(regressor, X, output, constraint):
+def save(regressor, X, output):
     """Save model and columns to file"""
-
-    columns = list(X.columns)
-    try:
-        joblib.dump(
-            regressor, output + '_' + constraint + '_model.pkl')
-        joblib.dump(columns, output + '_' + constraint + '_columns.pkl')
-    except TypeError:
-        joblib.dump(regressor, output + '_model.pkl')
-        joblib.dump(columns, output + '_columns.pkl')
+    joblib.dump(regressor, output + '_model.pkl')
+    joblib.dump(list(X.columns), output + '_columns.pkl')
 
 
-def upload(output, constraint):
+def upload(output):
     """Upload model and columns to S3"""
-
     s3_connection = boto3.client('s3')
     bucket_name = 'cpx-prediction'
-    model_file = output + '_' + constraint + '_model.pkl'
-    columns_file = output + '_' + constraint + '_columns.pkl'
+    model_file = output + '_model.pkl'
+    columns_file = output + '_columns.pkl'
     s3_connection.upload_file(model_file, bucket_name, model_file)
     s3_connection.upload_file(columns_file, bucket_name, columns_file)
 
@@ -315,17 +298,10 @@ def print_results(regressor, X, X_scaled, y, y_scaler):
         print(prediction)
 
 
-def train(category, output, constraint=None):
-    """Complete training pipeline
-    Possible output values:
-    'cost_per_impression', 'cost_per_click', 'cost_per_purchase', 'click_rate'
-    Possible constraint values: 'pay_per_impression', 'pay_per_click'
-    """
+def train(output):
+    """Complete training pipeline"""
 
-    if category == 'phases':
-        data = load_phases(output, constraint)
-    elif category == 'campaigns':
-        data = load_campaigns(output)
+    data = load_data(output)
 
     [X, y, X_train, y_train, X_test, y_test,
      X_scaled, X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
@@ -341,8 +317,8 @@ def train(category, output, constraint=None):
 
     best_regressor.fit(X, y)
 
-    save(best_regressor, X, output, constraint)
+    save(best_regressor, X, output)
 
-    # upload(output, constraint)
+    # upload(output)
 
     print_results(best_regressor, X, X_scaled, y, y_scaler)
