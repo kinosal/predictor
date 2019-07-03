@@ -122,7 +122,8 @@ def preprocess(data, output):
             X_scaled, X_train_scaled, y_train_scaled, X_test_scaled, y_scaler]
 
 
-def build(X_train, y_train, X_train_scaled, y_train_scaled):
+def build(X_train, y_train, X_train_scaled, y_train_scaled,
+          models=['linear', 'tree', 'forest', 'svr']):
     """Build and return models"""
 
     # Define helper function to create lists for search grids
@@ -133,133 +134,139 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled):
         return array
 
     # Linear regression (library includes feature scaling)
-    linear_regressor = LinearRegression()
-    linear_score = np.mean(cross_val_score(
-        estimator=linear_regressor, X=X_train, y=y_train,
-        cv=5, scoring='r2'))
+    if 'linear' in models:
+        linear_regressor = LinearRegression()
+        linear_score = np.mean(cross_val_score(
+            estimator=linear_regressor, X=X_train, y=y_train,
+            cv=5, scoring='r2'))
 
     # Decision tree regression (no feature scaling needed)
-    tree_regressor = DecisionTreeRegressor()
-    tree_parameters = [{'min_samples_split': list(range(2, 9, 1)),
-                        'max_leaf_nodes': list(range(2, 9, 1)),
-                        'criterion': ['mae']}]
-    tree_grid = GridSearchCV(estimator=tree_regressor,
-                             param_grid=tree_parameters,
-                             scoring='r2',
-                             cv=5,
-                             n_jobs=-1,
-                             iid=False)
-    tree_grid_result = tree_grid.fit(X_train, y_train)
-    best_tree_parameters = tree_grid_result.best_params_
-    tree_score = tree_grid_result.best_score_
-    tree_regressor = DecisionTreeRegressor(
-        min_samples_split=best_tree_parameters['min_samples_split'],
-        max_leaf_nodes=best_tree_parameters['max_leaf_nodes'],
-        criterion='mae')
+    if 'tree' in models:
+        tree_regressor = DecisionTreeRegressor()
+        tree_parameters = [{'min_samples_split': list(range(2, 8, 1)),
+                            'max_leaf_nodes': list(range(2, 8, 1)),
+                            'criterion': ['mae']}]
+        tree_grid = GridSearchCV(estimator=tree_regressor,
+                                 param_grid=tree_parameters,
+                                 scoring='r2',
+                                 cv=5,
+                                 n_jobs=-1,
+                                 iid=False)
+        tree_grid_result = tree_grid.fit(X_train, y_train)
+        best_tree_parameters = tree_grid_result.best_params_
+        tree_score = tree_grid_result.best_score_
+        tree_regressor = DecisionTreeRegressor(
+            min_samples_split=best_tree_parameters['min_samples_split'],
+            max_leaf_nodes=best_tree_parameters['max_leaf_nodes'],
+            criterion='mae')
 
     # Random forest regression (no feature scaling needed)
-    forest_regressor = RandomForestRegressor()
-    forest_parameters = [{'n_estimators': powerlist(10, 5),
-                          'min_samples_split': list(range(2, 9, 1)),
-                          'max_leaf_nodes': list(range(2, 9, 1)),
-                          'criterion': ['mae']}]
-    forest_grid = GridSearchCV(estimator=forest_regressor,
-                               param_grid=forest_parameters,
-                               scoring='r2',
-                               cv=5,
-                               n_jobs=-1,
-                               iid=False)
-    forest_grid_result = forest_grid.fit(X_train, y_train)
-    best_forest_parameters = forest_grid_result.best_params_
-    forest_score = forest_grid_result.best_score_
-    forest_regressor = RandomForestRegressor(
-        n_estimators=best_forest_parameters['n_estimators'],
-        min_samples_split=best_forest_parameters['min_samples_split'],
-        max_leaf_nodes=best_forest_parameters['max_leaf_nodes'],
-        criterion='mae')
+    if 'forest' in models:
+        forest_regressor = RandomForestRegressor()
+        forest_parameters = [{'n_estimators': powerlist(10, 4),
+                              'min_samples_split': list(range(2, 8, 1)),
+                              'max_leaf_nodes': list(range(2, 8, 1)),
+                              'criterion': ['mae']}]
+        forest_grid = GridSearchCV(estimator=forest_regressor,
+                                   param_grid=forest_parameters,
+                                   scoring='r2',
+                                   cv=5,
+                                   n_jobs=-1,
+                                   iid=False)
+        forest_grid_result = forest_grid.fit(X_train, y_train)
+        best_forest_parameters = forest_grid_result.best_params_
+        forest_score = forest_grid_result.best_score_
+        forest_regressor = RandomForestRegressor(
+            n_estimators=best_forest_parameters['n_estimators'],
+            min_samples_split=best_forest_parameters['min_samples_split'],
+            max_leaf_nodes=best_forest_parameters['max_leaf_nodes'],
+            criterion='mae')
 
     # SVR (needs feature scaling)
-    svr_regressor = SVR()
-    svr_parameters = [
-        {'C': powerlist(0.01, 10), 'kernel': ['linear']},
-        {'C': powerlist(0.01, 10), 'kernel': ['poly'], 'degree': [2, 3, 4, 5],
-         'gamma': powerlist(0.0000001, 10)},
-        {'C': powerlist(0.01, 10), 'kernel': ['rbf'],
-         'gamma': powerlist(0.0000001, 10), 'epsilon': powerlist(0.0001, 10)}]
-    svr_grid = GridSearchCV(estimator=svr_regressor,
-                            param_grid=svr_parameters,
-                            scoring='r2',
-                            cv=5,
-                            n_jobs=-1,
-                            iid=False)
-    svr_grid_result = svr_grid.fit(X_train_scaled, y_train_scaled)
-    best_svr_parameters = svr_grid_result.best_params_
-    svr_score = svr_grid_result.best_score_
-    if best_svr_parameters['kernel'] == 'linear':
-        svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
-                            C=best_svr_parameters['C'])
-    elif best_svr_parameters['kernel'] == 'poly':
-        svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
-                            C=best_svr_parameters['C'],
-                            gamma=best_svr_parameters['gamma'])
-    else:
-        svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
-                            C=best_svr_parameters['C'],
-                            gamma=best_svr_parameters['gamma'],
-                            epsilon=best_svr_parameters['epsilon'])
+    if 'svr' in models:
+        svr_regressor = SVR()
+        svr_parameters = [
+            {'C': powerlist(0.01, 10), 'kernel': ['linear']},
+            {'C': powerlist(0.01, 10), 'kernel': ['poly'], 'degree': [2, 3, 4, 5],
+             'gamma': powerlist(0.0000001, 10)},
+            {'C': powerlist(0.01, 10), 'kernel': ['rbf'],
+             'gamma': powerlist(0.0000001, 10), 'epsilon': powerlist(0.0001, 10)}]
+        svr_grid = GridSearchCV(estimator=svr_regressor,
+                                param_grid=svr_parameters,
+                                scoring='r2',
+                                cv=5,
+                                n_jobs=-1,
+                                iid=False)
+        svr_grid_result = svr_grid.fit(X_train_scaled, y_train_scaled)
+        best_svr_parameters = svr_grid_result.best_params_
+        svr_score = svr_grid_result.best_score_
+        if best_svr_parameters['kernel'] == 'linear':
+            svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
+                                C=best_svr_parameters['C'])
+        elif best_svr_parameters['kernel'] == 'poly':
+            svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
+                                C=best_svr_parameters['C'],
+                                gamma=best_svr_parameters['gamma'])
+        else:
+            svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
+                                C=best_svr_parameters['C'],
+                                gamma=best_svr_parameters['gamma'],
+                                epsilon=best_svr_parameters['epsilon'])
 
-    print('best_tree_parameters: ' + str(best_tree_parameters))
-    print('best_forest_parameters: ' + str(best_forest_parameters))
-    print('best_svr_parameters: ' + str(best_svr_parameters))
-    print('linear_r2_score: ' + str(linear_score))
-    print('tree_r2_score: ' + str(tree_score))
-    print('forest_r2_score: ' + str(forest_score))
-    print('svr_r2_score: ' + str(svr_score))
+    for model in models:
+        if model not in 'linear':
+            print('best_' + model + '_parameters: ' +
+                  str(eval('best_' + model + '_parameters')))
+        print(model + '_r2_score: ' + str(eval(model + '_score')))
 
-    return [linear_regressor, tree_regressor, forest_regressor, svr_regressor]
+    regressors = []
+    for model in models:
+        regressors.append(eval(model + '_regressor'))
+
+    return regressors
 
 
-def evaluate(linear_regressor, tree_regressor, forest_regressor, svr_regressor,
+def evaluate(regressors,
              X_train, y_train, X_train_scaled, y_train_scaled,
              X_test, y_test, X_test_scaled, y_scaler):
     """Evaluate models and return best regressor"""
 
     # Fit regressors on training set
-    linear_regressor.fit(X_train, y_train)
-    tree_regressor.fit(X_train, y_train)
-    forest_regressor.fit(X_train, y_train)
-    svr_regressor.fit(X_train_scaled, y_train_scaled)
+    for regressor in regressors:
+        if 'svr' in str(regressor):
+            regressor.fit(X_train_scaled, y_train_scaled)
+        else:
+            regressor.fit(X_train, y_train)
 
     # Predict training results and calculate accuracy
-    linear_train_accu = mean_relative(linear_regressor.predict(
-        X_train), y_train)
-    tree_train_accu = mean_relative(tree_regressor.predict(X_train), y_train)
-    forest_train_accu = mean_relative(forest_regressor.predict(X_train),
-                                      y_train)
-    svr_train_accu = mean_relative(y_scaler.inverse_transform(
-        svr_regressor.predict(X_train_scaled)), y_train)
+    training_accuracies = {}
+    for regressor in regressors:
+        if 'svr' in str(regressor):
+            training_accuracies[str(regressor)] = \
+                mean_relative(y_scaler.inverse_transform(
+                    regressor.predict(X_train_scaled)), y_train)
+        else:
+            training_accuracies[str(regressor)] = \
+                mean_relative(regressor.predict(X_train), y_train)
 
     # Predict test results and calculate accuracy
-    linear_test_accu = mean_relative(linear_regressor.predict(X_test), y_test)
-    tree_test_accu = mean_relative(tree_regressor.predict(X_test), y_test)
-    forest_test_accu = mean_relative(forest_regressor.predict(X_test), y_test)
-    svr_test_accu = mean_relative(y_scaler.inverse_transform(
-        svr_regressor.predict(X_test_scaled)), y_test)
+    test_accuracies = {}
+    for regressor in regressors:
+        if 'svr' in str(regressor):
+            test_accuracies[str(regressor)] = \
+                mean_relative(y_scaler.inverse_transform(
+                    regressor.predict(X_test_scaled)), y_test)
+        else:
+            test_accuracies[str(regressor)] = \
+                mean_relative(regressor.predict(X_test), y_test)
 
-    accuracies = {'linear_regressor': linear_test_accu,
-                  'tree_regressor': tree_test_accu,
-                  'forest_regressor': forest_test_accu,
-                  'svr_regressor': svr_test_accu}
-    best_regressor = eval(max(accuracies, key=accuracies.get))
+    best_regressor = eval(max(test_accuracies, key=test_accuracies.get))
 
-    print('linear_train_accu: ' + str(linear_train_accu))
-    print('tree_train_accu: ' + str(tree_train_accu))
-    print('forest_train_accu: ' + str(forest_train_accu))
-    print('svr_train_accu: ' + str(svr_train_accu))
-    print('linear_test_accu: ' + str(linear_test_accu))
-    print('tree_test_accu: ' + str(tree_test_accu))
-    print('forest_test_accu: ' + str(forest_test_accu))
-    print('svr_test_accu: ' + str(svr_test_accu))
+    for regressor in regressors:
+        print(str(regressor).split('(')[0] + '_train_accu: ' +
+              str(training_accuracies[str(regressor)]))
+        print(str(regressor).split('(')[0] + '_test_accu: ' +
+              str(test_accuracies[str(regressor)]))
 
     return best_regressor
 
@@ -307,11 +314,10 @@ def train(output):
      X_scaled, X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
         = preprocess(data, output)
 
-    [linear_regressor, tree_regressor, forest_regressor, svr_regressor] \
-        = build(X_train, y_train, X_train_scaled, y_train_scaled)
+    regressors = build(X_train, y_train, X_train_scaled, y_train_scaled)
 
     best_regressor = evaluate(
-        linear_regressor, tree_regressor, forest_regressor, svr_regressor,
+        regressors,
         X_train, y_train, X_train_scaled, y_train_scaled, X_test, y_test,
         X_test_scaled, y_scaler)
 
