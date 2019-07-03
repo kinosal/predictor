@@ -305,7 +305,7 @@ def print_results(regressor, X, X_scaled, y, y_scaler):
         print(prediction)
 
 
-def train(output):
+def train(output, models=['linear', 'tree', 'forest', 'svr']):
     """Complete training pipeline"""
 
     data = load_data(output)
@@ -314,7 +314,8 @@ def train(output):
      X_scaled, X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
         = preprocess(data, output)
 
-    regressors = build(X_train, y_train, X_train_scaled, y_train_scaled)
+    regressors = build(X_train, y_train, X_train_scaled, y_train_scaled,
+                       models)
 
     best_regressor = evaluate(
         regressors,
