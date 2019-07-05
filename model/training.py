@@ -35,8 +35,8 @@ def load_data(output):
     if output in ['impressions', 'clicks', 'purchases']:
         output = 'SUM(results.' + output + ') AS ' + output
     elif 'cost_per' in output:
-        output = 'SUM(results.cost) / SUM(results.' + \
-                 output.replace('cost_per_', '') + 's) AS ' + output
+        metric = output.replace('cost_per_', '') + 's'
+        output = 'SUM(results.' + metric + ') AS ' + metric
     select = 'SELECT ' + output + ', ' + open('campaigns.sql', 'r').read()
     return pd.read_sql_query(select, connection)
 
@@ -44,9 +44,14 @@ def load_data(output):
 def preprocess(data, output):
     """Preprocess data"""
 
-    # Drop rows where budget is 0
-    if 'budget' in data.columns:
-        data = data[data.budget != 0]
+    # Create 'cost_per_...' column and remove data where output is 0 or NaN
+    if 'cost_per' in output:
+        metric = output.replace('cost_per_', '') + 's'
+        data = data[data[metric] > 0]
+        data.insert(0, output, [row['cost'] / row[metric]
+                                for index, row in data.iterrows()])
+    else:
+        data = data[data[output] > 0]
 
     # Drop columns with more than 25% missing data
     rows = data[output].count()
@@ -70,12 +75,11 @@ def preprocess(data, output):
             if groups.loc[bucket] < results * threshold:
                 data.loc[data[column] == bucket, column] = 'other'
 
-    # Change pu and pv tracking to yes unless predicting cost per purchase,
-    # else drop rows where tracking is no and then tracking column
-    if output != 'cost_per_purchase':
-        data.loc[data['tracking'] == 'pu', 'tracking'] = 'yes'
-        data.loc[data['tracking'] == 'pv', 'tracking'] = 'yes'
-    else:
+    # Update pu and pv tracking to yes
+    data.loc[data['tracking'] == 'pu', 'tracking'] = 'yes'
+    data.loc[data['tracking'] == 'pv', 'tracking'] = 'yes'
+    # Drop no tracking rows and tracking column for purchase prediction
+    if output in ['purchases', 'cost_per_purchase']:
         data = data[data.tracking != 'no']
         data = data.drop(['tracking'], axis=1)
 
@@ -83,7 +87,15 @@ def preprocess(data, output):
     data.dropna(axis='index', inplace=True)
 
     # Encode categorical data
-    if output != 'cost_per_purchase':
+    if output in ['purchases', 'cost_per_purchase']:
+        data = pd.get_dummies(
+            data,
+            columns=['region', 'locality', 'category', 'shop'],
+            prefix=['region', 'locality', 'category', 'shop'],
+            drop_first=False)
+        data = data.drop(['region_other', 'locality_multiple',
+                          'category_other', 'shop_other'], axis=1)
+    else:
         data = pd.get_dummies(
             data,
             columns=['region', 'locality', 'category', 'shop', 'tracking'],
@@ -92,14 +104,6 @@ def preprocess(data, output):
         data = data.drop(['region_other', 'locality_multiple',
                           'category_other', 'shop_other', 'tracking_no'],
                          axis=1)
-    else:
-        data = pd.get_dummies(
-            data,
-            columns=['region', 'locality', 'category', 'shop'],
-            prefix=['region', 'locality', 'category', 'shop'],
-            drop_first=False)
-        data = data.drop(['region_other', 'locality_multiple',
-                          'category_other', 'shop_other'], axis=1)
 
     # Specify dependent variable vector y and independent variable matrix X
     y = data.iloc[:, 0]

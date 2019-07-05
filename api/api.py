@@ -15,11 +15,10 @@ def ping():
 
 @app.route('/<metric>', methods=['POST'])
 def process(metric):
-    if metric not in ['impressions', 'clicks', 'cost_per_impression',
-                      'cost_per_click']:
-        return 'Metric "' + metric + '" not supported. Currently ' + \
-               'supported metrics are "impressions", "clicks", ' + \
-               '"cost_per_impression" and "cost_per_click".'
+    if metric not in ['impressions', 'clicks', 'purchases',
+                      'cost_per_impression', 'cost_per_click',
+                      'cost_per_purchase']:
+        return 'Metric "' + metric + '" not supported.'
     data = request.json
     prediction = predict(data, metric)
     return jsonify({metric: prediction})
