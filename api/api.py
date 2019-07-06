@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify
+import datetime
+from flask import Flask, request, jsonify, render_template
 from boto.s3.connection import S3Connection
 import pandas as pd
 import joblib
@@ -8,9 +9,68 @@ import config
 app = Flask(__name__)
 
 
-@app.route('/ping', methods=['POST'])
+@app.route('/ping', methods=['GET', 'POST'])
 def ping():
-    return jsonify({'ping': 'successful'})
+    return 'Server is here'
+
+
+@app.route('/', methods=['GET', 'POST'])
+def root():
+    if request.method == 'POST':
+        data = {}
+        data['cost'] = int(request.form['budget'])
+        start_month, start_day, start_year = \
+            [int(i) for i in request.form['start_date'].split('/')]
+        end_month, end_day, end_year = \
+            [int(i) for i in request.form['end_date'].split('/')]
+        data['start_month'] = start_month
+        data['end_month'] = end_month
+        start_date = datetime.date(start_year, start_month, start_day)
+        end_date = datetime.date(end_year, end_month, end_day)
+        data['start_week'] = start_date.isocalendar()[1]
+        data['end_week'] = end_date.isocalendar()[1]
+        data['days'] = (end_date - start_date).days
+        data['ticket_capacity'] = int(request.form['capacity'])
+        data['average_ticket_price'] = int(request.form['price'])
+        for channel in ['facebook', 'instagram',
+                        'google_search', 'google_display']:
+            try:
+                if request.form[channel] == 'on':
+                    data[channel] = 1
+            except KeyError:
+                data[channel] = 0
+        data['facebook_likes'] = int(request.form['followers'])
+        data['region_' + request.form['region'].lower()] = 1
+        try:
+            if request.form['tour'] == 'on':
+                data['locality_single'] = 0
+        except KeyError:
+            data['locality_single'] = 1
+        data['category_' + request.form['category'].lower()] = 1
+        data['shop_' + request.form['shop'].lower()] = 1
+        try:
+            if request.form['tour'] == 'on':
+                data['tracking'] = 1
+        except KeyError:
+            data['tracking'] = 0
+        impressions = data['cost'] / predict([data], 'cost_per_impression')
+        clicks = data['cost'] / predict([data], 'cost_per_click')
+        purchases = data['cost'] / predict([data], 'cost_per_purchase')
+        impressions_lower = f'{int((impressions * 0.7).round(-4)):,}'
+        impressions_higher = f'{int((impressions * 1.2).round(-4)):,}'
+        clicks_lower = f'{int((clicks * 0.7).round(-2)):,}'
+        clicks_higher = f'{int((clicks * 1.2).round(-2)):,}'
+        purchases_lower = f'{int((purchases * 0.7).round(-1)):,}'
+        purchases_higher = f'{int((purchases * 1.2).round(-1)):,}'
+        return render_template('index.html', scroll='results',
+                               impressions_lower=impressions_lower,
+                               impressions_higher=impressions_higher,
+                               clicks_lower=clicks_lower,
+                               clicks_higher=clicks_higher,
+                               purchases_lower=purchases_lower,
+                               purchases_higher=purchases_higher)
+
+    return render_template('index.html')
 
 
 @app.route('/<metric>', methods=['POST'])
@@ -45,39 +105,3 @@ def load_from_bucket(key):
 
 if __name__ == '__main__':
     app.run()
-
-
-# Example JSON payload
-# [
-#     {
-#         "cost": 10000,
-#         "start_month": 7,
-#         "end_month": 12,
-#         "start_week": 25,
-#         "end_week": 50,
-#         "days": 184,
-#         "ticket_capacity": 10000,
-#         "average_ticket_price": 50,
-#         "facebook": 1,
-#         "instagram": 1,
-#         "google_search": 1,
-#         "google_display": 0,
-#         "facebook_likes": 1000,
-#         "region_germany": 1,
-#         "region_switzerland": 0,
-#         "locality_single": 1,
-#         "category_comedy": 0,
-#         "category_concert": 0,
-#         "category_conference": 1,
-#         "category_ecommerce": 0,
-#         "category_festival": 0,
-#         "category_theatre": 0,
-#         "shop_actnews": 0,
-#         "shop_eventbrite": 0,
-#         "shop_eventim": 0,
-#         "shop_reservix": 0,
-#         "shop_showare": 0,
-#         "shop_stagelink": 1,
-#         "tracking_yes": 1
-#     }
-# ]

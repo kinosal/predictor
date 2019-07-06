@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container">
+  <h4><center>Marketing Campaign Performance Predictor</center></h4>
+  <div>
+    <p>
+      <br>Predict impressions, clicks and purchases for a digital marketing campaign with an e-commerce (purchase) goal.
+    </p>
+    <form method="POST">
+      <div id="form_inputs">
+        <div class="form-row">
+          <div class="form-group col-md-6">
+            <label for="budget">Budget in €</label>
+            <input class="form-control" name="budget" type="number" min="100" step="1" placeholder="10000" value="{{ request.form['budget'] }}" required>
+          </div>
+          <div class="form-group col-md-6">
+            <label for="region">Category</label>
+            <select class="form-control" id="category" name="category">
+              <option {% if request.form['category'] == 'Concert' %}selected="selected"{% endif %}>Concert</option>
+              <option {% if request.form['category'] == 'Comedy Show' %}selected="selected"{% endif %}>Comedy Show</option>
+              <option {% if request.form['category'] == 'Theatre' %}selected="selected"{% endif %}>Theatre</option>
+              <option {% if request.form['category'] == 'Conference' %}selected="selected"{% endif %}>Conference</option>
+              <option {% if request.form['category'] == 'E-Commerce' %}selected="selected"{% endif %}>E-Commerce</option>
+              <option {% if request.form['category'] == 'Other' %}selected="selected"{% endif %}>Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col-md-6">
+            <label class="control-label" for="start_date">Start date</label>
+            <input class="form-control datepicker" id="start_date" name="start_date" type="text" placeholder="MM/DD/YYYY" value="{{ request.form['start_date'] }}" required>
+          </div>
+          <div class="form-group col-md-6">
+            <label class="control-label" for="end_date">End date</label>
+            <input class="form-control datepicker" id="end_date" name="end_date" type="text" placeholder="MM/DD/YYYY" value="{{ request.form['end_date'] }}" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col-md-6">
+            <label for="budget">Sales capacity (max. purchases)</label>
+            <input class="form-control" id="capacity" name="capacity" type="number" min="1" step="1" placeholder="10000" value="{{ request.form['capacity'] }}" required>
+          </div>
+          <div class="form-group col-md-6">
+            <label for="budget">Average purchase price in €</label>
+            <input class="form-control" id="price" name="price" type="number" min="0" step="1" placeholder="10" value="{{ request.form['price'] }}" required>
+          </div>
+        </div>
+        <p>Channels</p>
+        <div class="form-row">
+          <div class="form-group form-check form-check-inline col-md">
+            <input class="form-check-input" id="facebook" name="facebook" type="checkbox" {% if request.form['facebook'] == 'on' %}checked{% endif %}>
+            <label class="form-check-label" for="facebook">Facebook</label>
+          </div>
+          <div class="form-group form-check form-check-inline col-md">
+            <input class="form-check-input" id="instagram" name="instagram" type="checkbox" {% if request.form['instagram'] == 'on' %}checked{% endif %}>
+            <label class="form-check-label" for="instagram">Instagram</label>
+          </div>
+          <div class="form-group form-check form-check-inline col-md">
+            <input class="form-check-input" id="google_search" name="google_search" type="checkbox" {% if request.form['google_search'] == 'on' %}checked{% endif %}>
+            <label class="form-check-label" for="google_search">Google Search</label>
+          </div>
+          <div class="form-group form-check form-check-inline col-md">
+            <input class="form-check-input" id="google_display" name="google_display" type="checkbox" {% if request.form['google_display'] == 'on' %}checked{% endif %}>
+            <label class="form-check-label" for="google_display">Google Display</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col-md-6">
+            <label for="followers">Social Media Followers</label>
+            <input class="form-control" name="followers" type="number" min="0" step="1" placeholder="10000" value="{{ request.form['followers'] }}" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col-md-6">
+            <label for="region">Region</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col-md-6">
+            <select class="form-control" id="region" name="region">
+              <option {% if request.form['region'] == 'Germany' %}selected="selected"{% endif %}>Germany</option>
+              <option {% if request.form['region'] == 'Austria' %}selected="selected"{% endif %}>Austria</option>
+              <option {% if request.form['region'] == 'Switzerland' %}selected="selected"{% endif %}>Switzerland</option>
+              <option {% if request.form['region'] == 'Other' %}selected="selected"{% endif %}>Other</option>
+            </select>
+          </div>
+          <div class="form-group form-check form-check-inline col-md">
+            <input class="form-check-input" id="tour" name="tour" type="checkbox" {% if request.form['tour'] == 'on' %}checked{% endif %}>
+            <label class="form-check-label" for="tour">Tour (multiple locations)</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col-md-6">
+            <label for="shop">Shop</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col-md-6">
+            <select class="form-control" id="shop" name="shop">
+              <option {% if request.form['shop'] == 'Eventbrite' %}selected="selected"{% endif %}>Eventbrite</option>
+              <option {% if request.form['shop'] == 'Eventim' %}selected="selected"{% endif %}>Eventim</option>
+              <option {% if request.form['shop'] == 'Ticketmaster' %}selected="selected"{% endif %}>Ticketmaster</option>
+              <option {% if request.form['shop'] == 'Other' %}selected="selected"{% endif %}>Other</option>
+            </select>
+          </div>
+          <div class="form-group form-check form-check-inline col-md">
+            <input class="form-check-input" id="tracking" name="tracking" type="checkbox" {% if request.form['tracking'] == 'on' %}checked{% endif %}>
+            <label class="form-check-label" for="tracking">Shop enabled for Stagelink tracking</label>
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-success">Submit</button>
+    </form>
+  </div>
+</div>
+
+<br>
+<hr>
+<br>
+
+<div>
+  <p>Estimated results:</p>
+  <div id="results">
+    <table class="table">
+      <thead>
+          <tr>
+              <th scope="col"><center>Impressions</center></th>
+              <th scope="col"><center>Clicks</center></th>
+              <th scope="col"><center>Purchases</center></th>
+          </tr>
+      </thead>
+      <tbody>
+          <tr>
+              <td><center>{{ impressions_lower }} - {{ impressions_higher }}</center></td>
+              <td><center>{{ clicks_lower }} - {{ clicks_higher }}</center></td>
+              <td><center>{{ purchases_lower }} - {{ purchases_higher }}</center></td>
+          </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  $(document).ready(function(){
+    var options={
+      format: 'mm/dd/yyyy',
+      autoclose: true
+    };
+    $('.datepicker').datepicker(options);
+  })
+</script>
+
+{% if scroll %}
+<script>
+  document.getElementById('{{ scroll }}').scrollIntoView();
+</script>
+{% endif %}
+
+{% endblock %}
