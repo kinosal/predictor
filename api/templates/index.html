@@ -19,6 +19,7 @@
             <select class="form-control" id="category" name="category">
               <option {% if request.form['category'] == 'Concert' %}selected="selected"{% endif %}>Concert</option>
               <option {% if request.form['category'] == 'Comedy Show' %}selected="selected"{% endif %}>Comedy Show</option>
+              <option {% if request.form['category'] == 'Festival' %}selected="selected"{% endif %}>Festival</option>
               <option {% if request.form['category'] == 'Theatre' %}selected="selected"{% endif %}>Theatre</option>
               <option {% if request.form['category'] == 'Conference' %}selected="selected"{% endif %}>Conference</option>
               <option {% if request.form['category'] == 'E-Commerce' %}selected="selected"{% endif %}>E-Commerce</option>
@@ -65,12 +66,12 @@
             <label class="form-check-label" for="google_display">Google Display</label>
           </div>
         </div>
-        <div class="form-row">
+        <!-- <div class="form-row">
           <div class="form-group col-md-6">
             <label for="followers">Social Media Followers</label>
             <input class="form-control" name="followers" type="number" min="0" step="1" placeholder="10000" value="{{ request.form['followers'] }}" required>
           </div>
-        </div>
+        </div> -->
         <div class="form-row">
           <div class="col-md-6">
             <label for="region">Region</label>
@@ -104,10 +105,10 @@
               <option {% if request.form['shop'] == 'Other' %}selected="selected"{% endif %}>Other</option>
             </select>
           </div>
-          <div class="form-group form-check form-check-inline col-md">
+          <!-- <div class="form-group form-check form-check-inline col-md">
             <input class="form-check-input" id="tracking" name="tracking" type="checkbox" {% if request.form['tracking'] == 'on' %}checked{% endif %}>
             <label class="form-check-label" for="tracking">Shop enabled for purchase tracking</label>
-          </div>
+          </div> -->
         </div>
       </div>
       <button type="submit" class="btn btn-success">Submit</button>

@@ -39,7 +39,7 @@ def root():
                     data[channel] = 1
             except KeyError:
                 data[channel] = 0
-        data['facebook_likes'] = int(request.form['followers'])
+        # data['facebook_likes'] = int(request.form['followers'])
         data['region_' + request.form['region'].lower()] = 1
         try:
             if request.form['tour'] == 'on':
@@ -48,14 +48,17 @@ def root():
             data['locality_single'] = 1
         data['category_' + request.form['category'].lower()] = 1
         data['shop_' + request.form['shop'].lower()] = 1
-        try:
-            if request.form['tour'] == 'on':
-                data['tracking'] = 1
-        except KeyError:
-            data['tracking'] = 0
-        impressions = data['cost'] / predict([data], 'cost_per_impression')
-        clicks = data['cost'] / predict([data], 'cost_per_click')
-        purchases = data['cost'] / predict([data], 'cost_per_purchase')
+        # try:
+        #     if request.form['tracking'] == 'on':
+        #         data['tracking'] = 1
+        # except KeyError:
+        #     data['tracking'] = 0
+        impressions = (predict([data], 'impressions') + data['cost'] /
+                       predict([data], 'cost_per_impression')) / 2
+        clicks = (predict([data], 'clicks') + data['cost'] /
+                  predict([data], 'cost_per_click')) / 2
+        purchases = (predict([data], 'purchases') + data['cost'] /
+                     predict([data], 'cost_per_purchase')) / 2
         impressions_lower = f'{int((impressions * 0.7).round(-4)):,}'
         impressions_higher = f'{int((impressions * 1.2).round(-4)):,}'
         clicks_lower = f'{int((clicks * 0.7).round(-2)):,}'
@@ -80,7 +83,13 @@ def process(metric):
                       'cost_per_purchase']:
         return 'Metric "' + metric + '" not supported.'
     data = request.json
-    prediction = predict(data, metric)
+    print(data)
+    categoricals = ['category', 'region', 'shop', 'locality']
+    for cat in categoricals:
+        if cat in data:
+            data[cat + '_' + data[cat].lower()] = 1
+            del data[cat]
+    prediction = predict([data], metric)
     return jsonify({metric: prediction})
 
 

@@ -60,8 +60,7 @@ def preprocess(data, output):
             data = data.drop([column], axis=1)
 
     # Replace 0s with NaN where appropriate
-    columns = ['num_events', 'ticket_capacity',
-               'average_ticket_price', 'facebook_likes']
+    columns = ['num_events', 'ticket_capacity', 'average_ticket_price']
     for column in list(set(columns).intersection(list(data.columns))):
         data[column].replace(0, np.nan, inplace=True)
 
@@ -75,35 +74,17 @@ def preprocess(data, output):
             if groups.loc[bucket] < results * threshold:
                 data.loc[data[column] == bucket, column] = 'other'
 
-    # Update pu and pv tracking to yes
-    data.loc[data['tracking'] == 'pu', 'tracking'] = 'yes'
-    data.loc[data['tracking'] == 'pv', 'tracking'] = 'yes'
-    # Drop no tracking rows and tracking column for purchase prediction
-    if output in ['purchases', 'cost_per_purchase']:
-        data = data[data.tracking != 'no']
-        data = data.drop(['tracking'], axis=1)
-
     # Drop rows with NaN values
     data.dropna(axis='index', inplace=True)
 
     # Encode categorical data
-    if output in ['purchases', 'cost_per_purchase']:
-        data = pd.get_dummies(
-            data,
-            columns=['region', 'locality', 'category', 'shop'],
-            prefix=['region', 'locality', 'category', 'shop'],
-            drop_first=False)
-        data = data.drop(['region_other', 'locality_multiple',
-                          'category_other', 'shop_other'], axis=1)
-    else:
-        data = pd.get_dummies(
-            data,
-            columns=['region', 'locality', 'category', 'shop', 'tracking'],
-            prefix=['region', 'locality', 'category', 'shop', 'tracking'],
-            drop_first=False)
-        data = data.drop(['region_other', 'locality_multiple',
-                          'category_other', 'shop_other', 'tracking_no'],
-                         axis=1)
+    data = pd.get_dummies(
+        data,
+        columns=['region', 'locality', 'category', 'shop'],
+        prefix=['region', 'locality', 'category', 'shop'],
+        drop_first=False)
+    data = data.drop(['region_other', 'locality_multiple',
+                      'category_other', 'shop_other'], axis=1)
 
     # Specify dependent variable vector y and independent variable matrix X
     y = data.iloc[:, 0]
@@ -119,11 +100,13 @@ def preprocess(data, output):
     X_train_scaled = X_scaler.transform(X_train.values.astype(float))
     X_test_scaled = X_scaler.transform(X_test.values.astype(float))
     y_scaler = StandardScaler()
+    y_scaled = y_scaler.fit_transform(
+        y.values.astype(float).reshape(-1, 1)).flatten()
     y_train_scaled = y_scaler.fit_transform(
         y_train.values.astype(float).reshape(-1, 1)).flatten()
 
-    return [X, y, X_train, y_train, X_test, y_test,
-            X_scaled, X_train_scaled, y_train_scaled, X_test_scaled, y_scaler]
+    return [X, y, X_train, y_train, X_test, y_test, X_scaled, y_scaled,
+            X_train_scaled, y_train_scaled, X_test_scaled, y_scaler]
 
 
 def build(X_train, y_train, X_train_scaled, y_train_scaled,
@@ -237,7 +220,7 @@ def evaluate(regressors,
 
     # Fit regressors on training set
     for regressor in regressors:
-        if 'svr' in str(regressor):
+        if 'svr' in str(regressor).lower():
             regressor.fit(X_train_scaled, y_train_scaled)
         else:
             regressor.fit(X_train, y_train)
@@ -245,7 +228,7 @@ def evaluate(regressors,
     # Predict training results and calculate accuracy
     training_accuracies = {}
     for regressor in regressors:
-        if 'svr' in str(regressor):
+        if 'svr' in str(regressor).lower():
             training_accuracies[str(regressor)] = \
                 mean_relative(y_scaler.inverse_transform(
                     regressor.predict(X_train_scaled)), y_train)
@@ -256,7 +239,7 @@ def evaluate(regressors,
     # Predict test results and calculate accuracy
     test_accuracies = {}
     for regressor in regressors:
-        if 'svr' in str(regressor):
+        if 'svr' in str(regressor).lower():
             test_accuracies[str(regressor)] = \
                 mean_relative(y_scaler.inverse_transform(
                     regressor.predict(X_test_scaled)), y_test)
@@ -294,7 +277,7 @@ def upload(output):
 def print_results(regressor, X, X_scaled, y, y_scaler):
     """Print actuals and predictions"""
 
-    if str(regressor).split('(')[0] == 'SVR':
+    if 'svr' in str(regressor).lower():
         predictions = y_scaler.inverse_transform(
             regressor.predict(X_scaled)).round(4)
     else:
@@ -314,8 +297,8 @@ def train(output, models=['linear', 'tree', 'forest', 'svr']):
 
     data = load_data(output)
 
-    [X, y, X_train, y_train, X_test, y_test,
-     X_scaled, X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
+    [X, y, X_train, y_train, X_test, y_test, X_scaled, y_scaled,
+     X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
         = preprocess(data, output)
 
     regressors = build(X_train, y_train, X_train_scaled, y_train_scaled,
@@ -326,10 +309,13 @@ def train(output, models=['linear', 'tree', 'forest', 'svr']):
         X_train, y_train, X_train_scaled, y_train_scaled, X_test, y_test,
         X_test_scaled, y_scaler)
 
-    best_regressor.fit(X, y)
+    if 'svr' in str(best_regressor).lower():
+        best_regressor.fit(X_scaled, y_scaled)
+    else:
+        best_regressor.fit(X, y)
 
     save(best_regressor, X, output)
 
-    # upload(output)
+    upload(output)
 
     print_results(best_regressor, X, X_scaled, y, y_scaler)
