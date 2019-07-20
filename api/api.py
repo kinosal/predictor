@@ -39,7 +39,6 @@ def root():
                     data[channel] = 1
             except KeyError:
                 data[channel] = 0
-        # data['facebook_likes'] = int(request.form['followers'])
         data['region_' + request.form['region'].lower()] = 1
         try:
             if request.form['tour'] == 'on':
@@ -48,56 +47,69 @@ def root():
             data['locality_single'] = 1
         data['category_' + request.form['category'].lower()] = 1
         data['shop_' + request.form['shop'].lower()] = 1
-        # try:
-        #     if request.form['tracking'] == 'on':
-        #         data['tracking'] = 1
-        # except KeyError:
-        #     data['tracking'] = 0
-        impressions = (predict([data], 'impressions') + data['cost'] /
-                       predict([data], 'cost_per_impression')) / 2
-        clicks = (predict([data], 'clicks') + data['cost'] /
-                  predict([data], 'cost_per_click')) / 2
-        purchases = (predict([data], 'purchases') + data['cost'] /
-                     predict([data], 'cost_per_purchase')) / 2
-        impressions_lower = f'{int((impressions * 0.7).round(-4)):,}'
-        impressions_higher = f'{int((impressions * 1.2).round(-4)):,}'
-        clicks_lower = f'{int((clicks * 0.7).round(-2)):,}'
-        clicks_higher = f'{int((clicks * 1.2).round(-2)):,}'
-        purchases_lower = f'{int((purchases * 0.7).round(-1)):,}'
-        purchases_higher = f'{int((purchases * 1.2).round(-1)):,}'
+        predictions = predict_metrics(data)
+        impressions_low = int(round(predictions['impressions'] * 0.7, -4))
+        impressions_high = int(round(predictions['impressions'] * 1.2, -4))
+        clicks_low = int(round(predictions['clicks'] * 0.7, -2))
+        clicks_high = int(round(predictions['clicks'] * 1.2, -2))
+        purchases_low = int(round(predictions['purchases'] * 0.7, -1))
+        purchases_high = int(round(predictions['purchases'] * 1.2, -1))
         return render_template('index.html', scroll='results',
-                               impressions_lower=impressions_lower,
-                               impressions_higher=impressions_higher,
-                               clicks_lower=clicks_lower,
-                               clicks_higher=clicks_higher,
-                               purchases_lower=purchases_lower,
-                               purchases_higher=purchases_higher)
+                               impressions_low=f'{impressions_low:,}',
+                               impressions_high=f'{impressions_high:,}',
+                               clicks_low=f'{clicks_low:,}',
+                               clicks_high=f'{clicks_high:,}',
+                               purchases_low=f'{purchases_low:,}',
+                               purchases_high=f'{purchases_high:,}')
 
     return render_template('index.html')
 
 
 @app.route('/<metric>', methods=['POST'])
-def process(metric):
+def metric_prediction(metric):
     if metric not in ['impressions', 'clicks', 'purchases',
                       'cost_per_impression', 'cost_per_click',
                       'cost_per_purchase']:
         return 'Metric "' + metric + '" not supported.'
     data = request.json
-    print(data)
+    data = format_categoricals(data)
+    prediction = int(predict([data], metric))
+    return jsonify({metric: prediction})
+
+
+@app.route('/campaign', methods=['POST'])
+def campaign_prediction():
+    data = request.json
+    data = format_categoricals(data)
+    predictions = predict_metrics(data)
+    return jsonify(predictions)
+
+
+def format_categoricals(data):
     categoricals = ['category', 'region', 'shop', 'locality']
     for cat in categoricals:
         if cat in data:
             data[cat + '_' + data[cat].lower()] = 1
             del data[cat]
-    prediction = predict([data], metric)
-    return jsonify({metric: prediction})
+    return data
+
+
+def predict_metrics(data):
+    predictions = {}
+    for metric in ['impressions', 'clicks', 'purchases']:
+        direct = int(predict([data], metric))
+        cpx = int(data['cost'] / predict([data], 'cost_per_' + metric[0:-1]))
+        trans = int(predict([{'direct': direct, 'cpx': cpx}],
+                            metric + '_transfer'))
+        predictions[metric] = trans
+    return predictions
 
 
 def predict(data, output):
     model = load_from_bucket(output + '_model.pkl')
     columns = load_from_bucket(output + '_columns.pkl')
     data = pd.DataFrame(data).reindex(columns=columns, fill_value=0)
-    prediction = model.predict(data)[0].round(4)
+    prediction = model.predict(data)[0]
     return prediction
 
 

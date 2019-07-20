@@ -1,4 +1,5 @@
-"""Run train(output) for full pipeline to train, select and save
+"""
+Run train(output) for full pipeline to train, select and save
 best model predicting campaign performance, e.g.
 python -c 'import training; training.train("impressions")'
 """
@@ -23,7 +24,8 @@ from sklearn.svm import SVR
 
 
 def mean_relative(y_pred, y_true):
-    """Helper function to calculate mean relative deviation from two vectors
+    """
+    Helper function to calculate mean relative deviation from two vectors
     = 1 - mean percentage error
     """
     return 1 - np.mean(np.abs((y_pred - y_true) / y_true))
@@ -297,8 +299,8 @@ def train(output, models=['linear', 'tree', 'forest', 'svr']):
      X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
         = preprocess(data, output)
 
-    regressors = build(X_train, y_train, X_train_scaled, y_train_scaled,
-                       models)
+    regressors = build(
+        X_train, y_train, X_train_scaled, y_train_scaled, models)
 
     best_regressor = evaluate(regressors, X_train, y_train, X_train_scaled,
                               y_train_scaled, X_test, y_test, X_test_scaled,
