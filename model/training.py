@@ -59,32 +59,28 @@ def preprocess(data, output):
         if data[column].count() < rows * 0.75:
             data = data.drop([column], axis=1)
 
-    # Replace 0s with NaN where appropriate
-    columns = ['num_events', 'ticket_capacity', 'average_ticket_price']
-    for column in list(set(columns).intersection(list(data.columns))):
-        data[column].replace(0, np.nan, inplace=True)
+    # Drop rows with NaN values
+    data.dropna(axis='index', inplace=True)
 
-    # Put rare values into other bucket
+    # Put rare categorical values into other bucket
+    categoricals = list(data.select_dtypes(include='object').columns)
     threshold = 0.05
-    to_buckets = ['region', 'category', 'shop']
-    for column in list(set(to_buckets).intersection(list(data.columns))):
+    for column in categoricals:
         results = data[column].count()
         groups = data.groupby([column])[column].count()
         for bucket in groups.index:
             if groups.loc[bucket] < results * threshold:
                 data.loc[data[column] == bucket, column] = 'other'
 
-    # Drop rows with NaN values
-    data.dropna(axis='index', inplace=True)
-
     # Encode categorical data
-    data = pd.get_dummies(
-        data,
-        columns=['region', 'locality', 'category', 'shop'],
-        prefix=['region', 'locality', 'category', 'shop'],
-        drop_first=False)
-    data = data.drop(['region_other', 'locality_multiple',
-                      'category_other', 'shop_other'], axis=1)
+    for column in categoricals:
+        if 'other' in data[column].unique():
+            data = pd.get_dummies(data, columns=[column], prefix=[column],
+                                  drop_first=False)
+            data = data.drop([column + '_other'], axis=1)
+        else:
+            data = pd.get_dummies(data, columns=[column], prefix=[column],
+                                  drop_first=True)
 
     # Specify dependent variable vector y and independent variable matrix X
     y = data.iloc[:, 0]
@@ -304,10 +300,9 @@ def train(output, models=['linear', 'tree', 'forest', 'svr']):
     regressors = build(X_train, y_train, X_train_scaled, y_train_scaled,
                        models)
 
-    best_regressor = evaluate(
-        regressors,
-        X_train, y_train, X_train_scaled, y_train_scaled, X_test, y_test,
-        X_test_scaled, y_scaler)
+    best_regressor = evaluate(regressors, X_train, y_train, X_train_scaled,
+                              y_train_scaled, X_test, y_test, X_test_scaled,
+                              y_scaler)
 
     if 'svr' in str(best_regressor).lower():
         best_regressor.fit(X_scaled, y_scaled)
