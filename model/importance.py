@@ -1,6 +1,6 @@
 """Run calculate_importance(output, method) to return
 feature importance dataframe, e.g.
-python -c 'import importance; importance.calculate("cost_per_impression", "base")'
+python -c 'import importance; importance.calculate("impressions")'
 """
 
 import numpy as np
@@ -16,75 +16,63 @@ def create_dataframe(columns, values):
              .reset_index(drop=True)
 
 
-def calculate(output, method='base'):
+def calculate(output, model):
     """Determine importance for features of used best model"""
+
     data = training.load_data(output)
+    print('Data loaded.')
 
     # Add random column to data
     np.random.seed(seed=0)
     data['random'] = np.random.random(size=len(data))
 
-    [X, y, X_train, y_train, X_test, y_test,
-     X_scaled, X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
+    [X, y, X_train, y_train, X_test, y_test, X_scaled, y_scaled,
+     X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
         = training.preprocess(data, output)
+    print('Data preprocessed.')
 
-    [linear_regressor, tree_regressor, forest_regressor, svr_regressor] \
-        = training.build(X_train, y_train, X_train_scaled, y_train_scaled)
+    regressor = training.build(
+        X_train, y_train, X_train_scaled, y_train_scaled, [model])[0]
 
-    best_regressor = training.evaluate(
-        linear_regressor, tree_regressor, forest_regressor, svr_regressor,
-        X_train, y_train, X_train_scaled, y_train_scaled, X_test, y_test,
-        X_test_scaled, y_scaler)
+    model_clone = clone(regressor)
 
-    if method == 'base':
-        if str(best_regressor).split('(')[0] == 'SVR':
-            print('Base method not available for SVR')
-            return
-        best_regressor.fit(X_train, y_train)
-        importances_df = create_dataframe(
-            columns=X_train.columns,
-            values=best_regressor.feature_importances_)
+    # Set random_state for comparability
+    model_clone.random_state = 0
 
-    elif method == 'clone':
-        # Clone initially trained model
-        model_clone = clone(best_regressor)
+    # Train and score the benchmark model
+    if str(regressor).split('(')[0] == 'SVR':
+        model_clone.fit(X_train_scaled, y_train_scaled)
+        benchmark_score = training.mean_relative(
+            y_scaler.inverse_transform(
+                model_clone.predict(X_train_scaled)), y_train)
+    else:
+        model_clone.fit(X_train, y_train)
+        benchmark_score = training.mean_relative(
+            model_clone.predict(X_train), y_train)
 
-        # Set random_state for comparability
+    # Calculate and store feature importance benchmark deviation
+    importances = []
+    columns = X_train.columns
+    i = 1
+    for column in columns:
+        model_clone = clone(regressor)
         model_clone.random_state = 0
-
-        # Train and score the benchmark model
-        if str(best_regressor).split('(')[0] == 'SVR':
-            model_clone.fit(X_train_scaled, y_train_scaled)
-            benchmark_score = training.mean_relative(
-                y_scaler.inverse_transform(
-                    svr_regressor.predict(X_train_scaled)), y_train)
+        if str(regressor).split('(')[0] == 'SVR':
+            model_clone.fit(X_train_scaled.drop(column, axis=1),
+                            y_train_scaled)
+            drop_col_score = training.mean_relative(model_clone.predict(
+                X_train_scaled.drop(column, axis=1)), y_train_scaled)
         else:
-            model_clone.fit(X_train, y_train)
-            benchmark_score = training.mean_relative(
-                model_clone.predict(X_train), y_train)
+            model_clone.fit(X_train.drop(column, axis=1), y_train)
+            drop_col_score = training.mean_relative(
+                model_clone.predict(X_train.drop(column, axis=1)), y_train)
+        importances.append(benchmark_score - drop_col_score)
+        i += 1
 
-        # Calculate and store feature importance benchmark deviation
-        importances = []
-        columns = X_train.columns
-        i = 0
-        for column in columns:
-            model_clone = clone(best_regressor)
-            model_clone.random_state = 0
-            if str(best_regressor).split('(')[0] == 'SVR':
-                model_clone.fit(X_train_scaled[0:i, i+1:-1], y_train_scaled)
-                drop_col_score = training.mean_relative(model_clone.predict(
-                    X_train_scaled[0:i, i+1:-1]), y_train_scaled)
-            else:
-                model_clone.fit(X_train.drop(column, axis=1), y_train)
-                drop_col_score = training.mean_relative(
-                    model_clone.predict(X_train.drop(column, axis=1)), y_train)
-            importances.append(benchmark_score - drop_col_score)
-            i += 1
+    importances_df = create_dataframe(
+        columns=X_train.columns, values=importances)
 
-        importances_df = create_dataframe(
-            columns=X_train.columns, values=importances)
-
-    print('importances:')
+    print('Importances:')
     for i in range(0, len(importances_df)):
         print(str(importances_df.iloc[i].column) + ': ' +
               str(importances_df.iloc[i].value))
