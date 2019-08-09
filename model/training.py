@@ -17,6 +17,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import make_scorer
 from sklearn.linear_model import LinearRegression
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
@@ -123,17 +124,18 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled,
         linear_regressor = LinearRegression()
         linear_score = np.mean(cross_val_score(
             estimator=linear_regressor, X=X_train, y=y_train,
-            cv=5, scoring='r2'))
+            cv=5, scoring=make_scorer(mean_relative)))
+        print('Linear score: ' + str(linear_score))
 
     # Decision tree regression (no feature scaling needed)
     if 'tree' in models:
         tree_regressor = DecisionTreeRegressor()
         tree_parameters = [{'min_samples_split': list(range(2, 8, 1)),
                             'max_leaf_nodes': list(range(2, 8, 1)),
-                            'criterion': ['mae']}]
+                            'criterion': ['mae', 'mse']}]
         tree_grid = GridSearchCV(estimator=tree_regressor,
                                  param_grid=tree_parameters,
-                                 scoring='r2',
+                                 scoring=make_scorer(mean_relative),
                                  cv=5,
                                  n_jobs=-1,
                                  iid=False)
@@ -143,7 +145,9 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled,
         tree_regressor = DecisionTreeRegressor(
             min_samples_split=best_tree_parameters['min_samples_split'],
             max_leaf_nodes=best_tree_parameters['max_leaf_nodes'],
-            criterion='mae')
+            criterion=best_tree_parameters['criterion'])
+        print('Best tree params: ' + str(best_tree_parameters))
+        print('Tree score: ' + str(tree_score))
 
     # Random forest regression (no feature scaling needed)
     if 'forest' in models:
@@ -151,10 +155,10 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled,
         forest_parameters = [{'n_estimators': powerlist(10, 4),
                               'min_samples_split': list(range(2, 8, 1)),
                               'max_leaf_nodes': list(range(2, 8, 1)),
-                              'criterion': ['mae']}]
+                              'criterion': ['mae', 'mse']}]
         forest_grid = GridSearchCV(estimator=forest_regressor,
                                    param_grid=forest_parameters,
-                                   scoring='r2',
+                                   scoring=make_scorer(mean_relative),
                                    cv=5,
                                    n_jobs=-1,
                                    iid=False)
@@ -165,7 +169,9 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled,
             n_estimators=best_forest_parameters['n_estimators'],
             min_samples_split=best_forest_parameters['min_samples_split'],
             max_leaf_nodes=best_forest_parameters['max_leaf_nodes'],
-            criterion='mae')
+            criterion=best_forest_parameters['criterion'])
+        print('Best forest params: ' + str(best_forest_parameters))
+        print('Forest score: ' + str(forest_score))
 
     # SVR (needs feature scaling)
     if 'svr' in models:
@@ -178,7 +184,7 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled,
              'gamma': powerlist(0.0000001, 10), 'epsilon': powerlist(0.0001, 10)}]
         svr_grid = GridSearchCV(estimator=svr_regressor,
                                 param_grid=svr_parameters,
-                                scoring='r2',
+                                scoring=make_scorer(mean_relative),
                                 cv=5,
                                 n_jobs=-1,
                                 iid=False)
@@ -197,12 +203,8 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled,
                                 C=best_svr_parameters['C'],
                                 gamma=best_svr_parameters['gamma'],
                                 epsilon=best_svr_parameters['epsilon'])
-
-    for model in models:
-        if model not in 'linear':
-            print('best_' + model + '_parameters: ' +
-                  str(eval('best_' + model + '_parameters')))
-        print(model + '_r2_score: ' + str(eval(model + '_score')))
+        print('Best SVR params: ' + str(best_svr_parameters))
+        print('SVR score: ' + str(svr_score))
 
     regressors = []
     for model in models:
@@ -224,6 +226,8 @@ def evaluate(regressors,
             regressor.fit(X_train, y_train)
 
     # Predict training results and calculate accuracy
+    # (might slightly differ from training scores since evaluated on the
+    # full training set without cross validation)
     training_accuracies = {}
     for regressor in regressors:
         if 'svr' in str(regressor).lower():
@@ -281,11 +285,12 @@ def print_results(regressor, X, X_scaled, y, y_scaler):
     else:
         predictions = regressor.predict(X).round(4)
 
-    print('actuals:')
+    print('\n### Results ###')
+    print('\nActuals:')
     for actual in y:
         print(actual)
 
-    print('predictions:')
+    print('\nPredictions:')
     for prediction in predictions:
         print(prediction)
 
@@ -294,10 +299,12 @@ def train(output, models=['linear', 'tree', 'forest', 'svr']):
     """Complete training pipeline"""
 
     data = load_data(output)
+    print('Data loaded.')
 
     [X, y, X_train, y_train, X_test, y_test, X_scaled, y_scaled,
      X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
         = preprocess(data, output)
+    print('Data preprocessed.')
 
     regressors = build(
         X_train, y_train, X_train_scaled, y_train_scaled, models)
@@ -305,14 +312,18 @@ def train(output, models=['linear', 'tree', 'forest', 'svr']):
     best_regressor = evaluate(regressors, X_train, y_train, X_train_scaled,
                               y_train_scaled, X_test, y_test, X_test_scaled,
                               y_scaler)
+    print('Regressors evaluated. Best regressor is:\n' + str(best_regressor))
 
     if 'svr' in str(best_regressor).lower():
         best_regressor.fit(X_scaled, y_scaled)
     else:
         best_regressor.fit(X, y)
+    print('Regressor fit.')
 
     save(best_regressor, X, output)
+    print('Regressor saved.')
 
     upload(output)
+    print('Regressor uploaded.')
 
     print_results(best_regressor, X, X_scaled, y, y_scaler)

@@ -1,5 +1,5 @@
 """
-python -c 'import train_transfer; transfer.train_transfer("impressions")'
+python -c 'import transfer; transfer.train_transfer("impressions")'
 """
 
 
@@ -78,10 +78,12 @@ def preprocess_transfer(data):
 
 def train_transfer(output, models=['linear', 'tree', 'forest', 'svr']):
     data = get_predictions(output)
+    print('Data loaded.')
 
     [X, y, X_train, y_train, X_test, y_test, X_scaled, y_scaled,
      X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
         = preprocess_transfer(data)
+    print('Data preprocessed.')
 
     regressors = training.build(
         X_train, y_train, X_train_scaled, y_train_scaled, models)
@@ -89,14 +91,18 @@ def train_transfer(output, models=['linear', 'tree', 'forest', 'svr']):
     best_regressor = training.evaluate(
         regressors, X_train, y_train, X_train_scaled, y_train_scaled,
         X_test, y_test, X_test_scaled, y_scaler)
+    print('Regressors evaluated. Best regressor is:\n' + str(best_regressor))
 
     if 'svr' in str(best_regressor).lower():
         best_regressor.fit(X_scaled, y_scaled)
     else:
         best_regressor.fit(X, y)
+    print('Regressor fit.')
 
     training.save(best_regressor, X, output + '_transfer')
+    print('Regressor saved.')
 
     training.upload(output + '_transfer')
+    print('Regressor uploaded.')
 
     training.print_results(best_regressor, X, X_scaled, y, y_scaler)
