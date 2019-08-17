@@ -1,7 +1,7 @@
 """
 Run train(output) for full pipeline to train, select and save
 best model predicting campaign performance, e.g.
-python -c 'import training; training.train("impressions")'
+python -c 'import training; training.train(output="impressions")'
 """
 
 # Import secrets
@@ -32,7 +32,7 @@ def mean_relative(y_pred, y_true):
     return 1 - np.mean(np.abs((y_pred - y_true) / y_true))
 
 
-def load_data(output):
+def load_data_from_postgres(output):
     """Load campaign data into dataframe from Postgres database"""
     connection = pg.connect(config.marketing_production)
     if output in ['impressions', 'clicks', 'purchases']:
@@ -42,6 +42,10 @@ def load_data(output):
         output = 'SUM(results.' + metric + ') AS ' + metric
     select = 'SELECT ' + output + ', ' + open('campaigns.sql', 'r').read()
     return pd.read_sql_query(select, connection)
+
+
+def load_data_from_csv(filename):
+    return pd.read_csv(filename)
 
 
 def preprocess(data, output):
@@ -56,10 +60,10 @@ def preprocess(data, output):
     else:
         data = data[data[output] > 0]
 
-    # Drop columns with more than 25% missing data
+    # Drop columns with more than 50% missing data
     rows = data[output].count()
     for column in list(data.columns):
-        if data[column].count() < rows * 0.75:
+        if data[column].count() < rows * .5:
             data = data.drop([column], axis=1)
 
     # Drop rows with NaN values
@@ -67,7 +71,7 @@ def preprocess(data, output):
 
     # Put rare categorical values into other bucket
     categoricals = list(data.select_dtypes(include='object').columns)
-    threshold = 0.05
+    threshold = 0.1
     for column in categoricals:
         results = data[column].count()
         groups = data.groupby([column])[column].count()
@@ -182,10 +186,11 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled,
         svr_regressor = SVR()
         svr_parameters = [
             {'C': powerlist(0.01, 10), 'kernel': ['linear']},
-            {'C': powerlist(0.01, 10), 'kernel': ['poly'], 'degree': [2, 3, 4, 5],
-             'gamma': powerlist(0.0000001, 10)},
+            {'C': powerlist(0.01, 10), 'kernel': ['poly'],
+             'degree': [2, 3, 4, 5], 'gamma': powerlist(0.0000001, 10)},
             {'C': powerlist(0.01, 10), 'kernel': ['rbf'],
-             'gamma': powerlist(0.0000001, 10), 'epsilon': powerlist(0.0001, 10)}]
+             'gamma': powerlist(0.0000001, 10),
+             'epsilon': powerlist(0.0001, 10)}]
         svr_grid = GridSearchCV(estimator=svr_regressor,
                                 param_grid=svr_parameters,
                                 scoring=make_scorer(mean_relative),
@@ -299,11 +304,18 @@ def print_results(regressor, X, X_scaled, y, y_scaler):
         print(prediction)
 
 
-def train(output, models=['linear', 'tree', 'forest', 'svr']):
+def train(output, models=['linear', 'tree', 'forest', 'svr'], source='pg'):
     """Complete training pipeline"""
 
-    data = load_data(output)
-    print('Data loaded.')
+    if source == 'pg':
+        data = load_data_from_postgres(output)
+        print('Data loaded from Postgres.')
+    elif source == 'csv':
+        data = load_data_from_csv(output + '.csv')
+        print('Data loaded from CSV.')
+    else:
+        print('Source not available.')
+        return
 
     [X, y, X_train, y_train, X_test, y_test, X_scaled, y_scaled,
      X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
