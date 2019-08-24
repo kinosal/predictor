@@ -83,7 +83,8 @@ def preprocess(data, output):
 
     # Split dataset into training and test set
     X_train, X_test, y_train, y_test = train_test_split(
-        data.drop([output], axis=1), data[output], test_size=0.2)
+        data.drop([output], axis=1), data[output],
+        test_size=0.2, random_state=1)
 
     # Scale features
     X_scaler = StandardScaler()
@@ -132,23 +133,23 @@ def evaluate(regressors,
     training_accuracies = {}
     for regressor in regressors:
         if 'svr' in str(regressor).lower():
-            training_accuracies[regressor] = \
-                helpers.mean_relative(y_scaler.inverse_transform(
-                    regressor.predict(X_train_scaled)), y_train)
+            training_accuracies[regressor] = helpers.mean_relative_accuracy(
+                y_scaler.inverse_transform(regressor.predict(
+                    X_train_scaled)), y_train)
         else:
-            training_accuracies[regressor] = \
-                helpers.mean_relative(regressor.predict(X_train), y_train)
+            training_accuracies[regressor] = helpers.mean_relative_accuracy(
+                regressor.predict(X_train), y_train)
 
     # Predict test results and calculate accuracy
     test_accuracies = {}
     for regressor in regressors:
         if 'svr' in str(regressor).lower():
-            test_accuracies[regressor] = \
-                helpers.mean_relative(y_scaler.inverse_transform(
-                    regressor.predict(X_test_scaled)), y_test)
+            test_accuracies[regressor] = helpers.mean_relative_accuracy(
+                y_scaler.inverse_transform(regressor.predict(
+                    X_test_scaled)), y_test)
         else:
-            test_accuracies[regressor] = \
-                helpers.mean_relative(regressor.predict(X_test), y_test)
+            test_accuracies[regressor] = helpers.mean_relative_accuracy(
+                regressor.predict(X_test), y_test)
 
     best_regressor = max(test_accuracies, key=test_accuracies.get)
 
@@ -228,10 +229,10 @@ def train(output, models=['linear', 'tree', 'forest', 'svr'], source='pg'):
         best_regressor.fit(X, y)
     print('Regressor fit.')
 
-    save(best_regressor, X, output)
-    print('Regressor saved.')
-
-    upload(output)
-    print('Regressor uploaded.')
-
-    print_results(best_regressor, X, X_scaled, y, y_scaler)
+    # save(best_regressor, X, output)
+    # print('Regressor saved.')
+    #
+    # upload(output)
+    # print('Regressor uploaded.')
+    #
+    # print_results(best_regressor, X, X_scaled, y, y_scaler)

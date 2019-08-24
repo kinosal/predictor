@@ -36,6 +36,11 @@ plt.show()
 # Investigate correlations between dependent and independent variables
 data.corr(method='pearson').iloc[0].sort_values(ascending=False)
 
+# Visualize correlations between dependent and numerial independent variables
+sns.pairplot(data=data, y_vars=[output], x_vars=quan[1:], kind='reg',
+             height=3, aspect=1)
+plt.show()
+
 # Investigate missing values
 # Columns with NaN
 data.isnull().sum()

@@ -1,9 +1,9 @@
 import numpy as np
 
 
-def mean_relative(y_pred, y_true):
+def mean_relative_accuracy(y_pred, y_true):
     """
-    Helper function to calculate mean relative deviation from two vectors
+    Helper function to calculate mean relative closeness of two vectors
     = 1 - mean percentage error
     """
     return 1 - np.mean(np.abs((y_pred - y_true) / y_true))
