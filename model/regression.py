@@ -48,9 +48,9 @@ class Regression:
         to determine the best parameters
         """
 
-        tree_parameters = [{'min_samples_split': list(range(2, 8, 1)),
-                            'max_leaf_nodes': list(range(2, 8, 1)),
-                            'criterion': ['mae', 'mse']}]
+        tree_parameters = [{'min_samples_leaf': list(range(2, 10, 1)),
+                            'criterion': ['mae', 'mse'],
+                            'random_state': [1]}]
         tree_grid = GridSearchCV(estimator=DecisionTreeRegressor(),
                                  param_grid=tree_parameters,
                                  scoring=self.scorer, cv=5, n_jobs=-1,
@@ -61,9 +61,9 @@ class Regression:
         print('Best tree params: ' + str(best_tree_parameters))
         print('Tree score: ' + str(tree_score))
         return DecisionTreeRegressor(
-            min_samples_split=best_tree_parameters['min_samples_split'],
-            max_leaf_nodes=best_tree_parameters['max_leaf_nodes'],
-            criterion=best_tree_parameters['criterion'])
+            min_samples_leaf=best_tree_parameters['min_samples_leaf'],
+            criterion=best_tree_parameters['criterion'],
+            random_state=1)
 
     def forest(self):
         """
@@ -73,9 +73,9 @@ class Regression:
         """
 
         forest_parameters = [{'n_estimators': helpers.powerlist(10, 2, 4),
-                              'min_samples_split': list(range(2, 8, 1)),
-                              'max_leaf_nodes': list(range(2, 8, 1)),
-                              'criterion': ['mae', 'mse']}]
+                              'min_samples_leaf': list(range(2, 10, 1)),
+                              'criterion': ['mae', 'mse'],
+                              'random_state': [1], 'n_jobs': [-1]}]
         forest_grid = GridSearchCV(estimator=RandomForestRegressor(),
                                    param_grid=forest_parameters,
                                    scoring=self.scorer, cv=5, n_jobs=-1,
@@ -87,9 +87,9 @@ class Regression:
         print('Forest score: ' + str(forest_score))
         return RandomForestRegressor(
             n_estimators=best_forest_parameters['n_estimators'],
-            min_samples_split=best_forest_parameters['min_samples_split'],
-            max_leaf_nodes=best_forest_parameters['max_leaf_nodes'],
-            criterion=best_forest_parameters['criterion'])
+            min_samples_leaf=best_forest_parameters['min_samples_leaf'],
+            criterion=best_forest_parameters['criterion'],
+            random_state=1, n_jobs=-1)
 
     def svr(self):
         """

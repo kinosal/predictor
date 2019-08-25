@@ -49,12 +49,3 @@ rows_with_nan = 0
 for i in range(len(data)):
     rows_with_nan += data.iloc[i].isnull().sum()
 print(rows_with_nan)
-
-####
-
-# Visualize tree results
-import graphviz
-from sklearn import tree
-dot_data = tree.export_graphviz(tree_regressor, out_file='tree.dot',
-                                feature_names=X_train.columns)
-# dot -Tpng tree.dot -o tree.png
