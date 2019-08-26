@@ -1,9 +1,6 @@
-# Visualize tree results
-import graphviz
-from sklearn import tree
-
-dot_data = tree.export_graphviz(tree_regressor, out_file='tree.dot',
-                                feature_names=X_train.columns)
+# Visualize decision tree results
+from sklearn.tree import export_graphviz
+export_graphviz(regressor, out_file='tree.dot', feature_names=X_train.columns)
 # dot -Tpng tree.dot -o tree.png
 
 ####

@@ -98,20 +98,21 @@ class Regression:
         to determine the best parameters
         """
 
-        svr_parameters = [
-            {'C': helpers.powerlist(0.01, 2, 10), 'kernel': ['linear']},
-            {'C': helpers.powerlist(0.01, 2, 10), 'kernel': ['poly'],
-             'degree': [2, 3, 4, 5],
-             'gamma': helpers.powerlist(0.0000001, 2, 10)},
-            {'C': helpers.powerlist(0.01, 2, 10), 'kernel': ['rbf'],
-             'gamma': helpers.powerlist(0.0000001, 2, 10),
-             'epsilon': helpers.powerlist(0.0001, 2, 10)}]
+        svr_parameters = [{'kernel': ['linear'],
+                           'C': helpers.powerlist(0.1, 2, 10)},
+                          {'kernel': ['poly'],
+                           'C': helpers.powerlist(0.1, 2, 10),
+                           'degree': list(range(2, 10, 1)),
+                           'gamma': ['scale']},
+                          {'kernel': ['rbf'],
+                           'C': helpers.powerlist(0.01, 2, 10),
+                           'epsilon': helpers.powerlist(0.01, 2, 10),
+                           'gamma': ['scale']}]
         svr_grid = GridSearchCV(estimator=SVR(),
                                 param_grid=svr_parameters,
                                 scoring=self.scorer, cv=5, n_jobs=-1,
                                 iid=False)
-        svr_grid_result = \
-            svr_grid.fit(self.X_train_scaled, self.y_train_scaled)
+        svr_grid_result = svr_grid.fit(self.X_train_scaled, self.y_train_scaled)
         best_svr_parameters = svr_grid_result.best_params_
         svr_score = svr_grid_result.best_score_
         print('Best SVR params: ' + str(best_svr_parameters))
@@ -121,11 +122,12 @@ class Regression:
                                 C=best_svr_parameters['C'])
         elif best_svr_parameters['kernel'] == 'poly':
             svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
+                                degree=best_svr_parameters['degree'],
                                 C=best_svr_parameters['C'],
-                                gamma=best_svr_parameters['gamma'])
+                                gamma='scale')
         else:
             svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
                                 C=best_svr_parameters['C'],
-                                gamma=best_svr_parameters['gamma'],
-                                epsilon=best_svr_parameters['epsilon'])
+                                epsilon=best_svr_parameters['epsilon'],
+                                gamma='scale')
         return svr_regressor
