@@ -120,7 +120,7 @@ def evaluate(regressors,
              X_test, y_test, X_test_scaled, y_scaler):
     """Evaluate models and return best regressor"""
 
-    # Fit regressors on training set
+    # Fit regressors on full training set
     for regressor in regressors:
         if 'svr' in str(regressor).lower():
             regressor.fit(X_train_scaled, y_train_scaled)
@@ -128,8 +128,6 @@ def evaluate(regressors,
             regressor.fit(X_train, y_train)
 
     # Predict training results and calculate accuracy
-    # (might slightly differ from training scores since evaluated on the
-    # full training set without cross validation)
     training_accuracies = {}
     for regressor in regressors:
         if 'svr' in str(regressor).lower():
@@ -229,10 +227,10 @@ def train(output, models=['linear', 'tree', 'forest', 'svr'], source='pg'):
         best_regressor.fit(X, y)
     print('Regressor fit.')
 
+    print_results(best_regressor, X, X_scaled, y, y_scaler)
+
     # save(best_regressor, X, output)
     # print('Regressor saved.')
     #
     # upload(output)
     # print('Regressor uploaded.')
-    #
-    # print_results(best_regressor, X, X_scaled, y, y_scaler)

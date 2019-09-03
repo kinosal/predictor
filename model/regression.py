@@ -98,14 +98,13 @@ class Regression:
         to determine the best parameters
         """
 
-        svr_parameters = [{'kernel': ['linear'],
-                           'C': helpers.powerlist(0.1, 2, 10)},
-                          {'kernel': ['poly'],
+        svr_parameters = [{'kernel': ['linear', 'rbf'],
                            'C': helpers.powerlist(0.1, 2, 10),
-                           'degree': list(range(2, 10, 1)),
+                           'epsilon': helpers.powerlist(0.01, 2, 10),
                            'gamma': ['scale']},
-                          {'kernel': ['rbf'],
-                           'C': helpers.powerlist(0.01, 2, 10),
+                          {'kernel': ['poly'],
+                           'degree': list(range(2, 5, 1)),
+                           'C': helpers.powerlist(0.1, 2, 10),
                            'epsilon': helpers.powerlist(0.01, 2, 10),
                            'gamma': ['scale']}]
         svr_grid = GridSearchCV(estimator=SVR(),
@@ -117,13 +116,11 @@ class Regression:
         svr_score = svr_grid_result.best_score_
         print('Best SVR params: ' + str(best_svr_parameters))
         print('SVR score: ' + str(svr_score))
-        if best_svr_parameters['kernel'] == 'linear':
-            svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
-                                C=best_svr_parameters['C'])
-        elif best_svr_parameters['kernel'] == 'poly':
+        if best_svr_parameters['kernel'] == 'poly':
             svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
                                 degree=best_svr_parameters['degree'],
                                 C=best_svr_parameters['C'],
+                                epsilon=best_svr_parameters['epsilon'],
                                 gamma='scale')
         else:
             svr_regressor = SVR(kernel=best_svr_parameters['kernel'],
