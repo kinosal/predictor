@@ -6,7 +6,7 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
 import statsmodels.api as sm
-import helpers
+import helpers as hel
 
 
 class Regression:
@@ -19,7 +19,7 @@ class Regression:
         self.y_train = y_train
         self.X_train_scaled = X_train_scaled
         self.y_train_scaled = y_train_scaled
-        self.scorer = make_scorer(helpers.mean_relative_accuracy)
+        self.scorer = make_scorer(hel.mean_relative_accuracy)
 
     def linear(self, verbose=0):
         """
@@ -72,7 +72,7 @@ class Regression:
         to determine the best parameters
         """
 
-        forest_parameters = [{'n_estimators': helpers.powerlist(10, 2, 4),
+        forest_parameters = [{'n_estimators': hel.powerlist(10, 2, 4),
                               'min_samples_leaf': list(range(2, 10, 1)),
                               'criterion': ['mae', 'mse'],
                               'random_state': [1], 'n_jobs': [-1]}]
@@ -99,13 +99,13 @@ class Regression:
         """
 
         svr_parameters = [{'kernel': ['linear', 'rbf'],
-                           'C': helpers.powerlist(0.1, 2, 10),
-                           'epsilon': helpers.powerlist(0.01, 2, 10),
+                           'C': hel.powerlist(0.1, 2, 10),
+                           'epsilon': hel.powerlist(0.01, 2, 10),
                            'gamma': ['scale']},
                           {'kernel': ['poly'],
                            'degree': list(range(2, 5, 1)),
-                           'C': helpers.powerlist(0.1, 2, 10),
-                           'epsilon': helpers.powerlist(0.01, 2, 10),
+                           'C': hel.powerlist(0.1, 2, 10),
+                           'epsilon': hel.powerlist(0.01, 2, 10),
                            'gamma': ['scale']}]
         svr_grid = GridSearchCV(estimator=SVR(),
                                 param_grid=svr_parameters,
