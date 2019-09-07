@@ -64,16 +64,19 @@ def one_hot_encode(data):
 
 def scale_features(X, y, X_train, y_train, X_test):
     """Scale dependent and independent variables"""
-    X_scaler = StandardScaler()
+    X_scaler, y_scaler = StandardScaler(), StandardScaler()
+
     X_scaled = X_scaler.fit_transform(X.values.astype(float))
-    X_train_scaled = pd.DataFrame(data=X_scaler.transform(
-        X_train.values.astype(float)), columns=X_train.columns)
-    X_test_scaled = pd.DataFrame(data=X_scaler.transform(
-        X_test.values.astype(float)), columns=X_test.columns)
-    y_scaler = StandardScaler()
     y_scaled = y_scaler.fit_transform(
         y.values.astype(float).reshape(-1, 1)).flatten()
-    y_train_scaled = y_scaler.fit_transform(
+
+    X_train_scaled = pd.DataFrame(data=X_scaler.transform(
+        X_train.values.astype(float)), columns=X.columns)
+    y_train_scaled = y_scaler.transform(
         y_train.values.astype(float).reshape(-1, 1)).flatten()
-    return [X_scaled, y_scaled, X_train_scaled, y_train_scaled, X_test_scaled,
-            y_scaler]
+
+    X_test_scaled = pd.DataFrame(data=X_scaler.transform(
+        X_test.values.astype(float)), columns=X.columns)
+
+    return [X_scaled, y_scaled, X_train_scaled, y_train_scaled,
+            X_test_scaled, y_scaler]
