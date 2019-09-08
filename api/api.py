@@ -1,4 +1,5 @@
 import datetime
+import math
 from flask import Flask, request, jsonify, render_template
 from boto.s3.connection import S3Connection
 import pandas as pd
@@ -48,12 +49,12 @@ def root():
         data['category_' + request.form['category'].lower()] = 1
         data['shop_' + request.form['shop'].lower()] = 1
         predictions = predict_metrics(data)
-        impressions_low = int(round(predictions['impressions'] * 0.7, -4))
-        impressions_high = int(round(predictions['impressions'] * 1.2, -4))
-        clicks_low = int(round(predictions['clicks'] * 0.7, -2))
-        clicks_high = int(round(predictions['clicks'] * 1.2, -2))
-        purchases_low = int(round(predictions['purchases'] * 0.7, -1))
-        purchases_high = int(round(predictions['purchases'] * 1.2, -1))
+        impressions_low = int(round_down(predictions['impressions'] * 0.8, -4))
+        impressions_high = int(round_up(predictions['impressions'] * 1.2, -4))
+        clicks_low = int(round_down(predictions['clicks'] * 0.8, -2))
+        clicks_high = int(round_up(predictions['clicks'] * 1.2, -2))
+        purchases_low = int(round_down(predictions['purchases'] * 0.8, -1))
+        purchases_high = int(round_up(predictions['purchases'] * 1.2, -1))
         return render_template('index.html', scroll='results',
                                impressions_low=f'{impressions_low:,}',
                                impressions_high=f'{impressions_high:,}',
@@ -83,6 +84,16 @@ def campaign_prediction():
     data = format_categoricals(data)
     predictions = predict_metrics(data)
     return jsonify(predictions)
+
+
+def round_up(x, decimals=0):
+    multiplier = 10 ** decimals
+    return math.ceil(x * multiplier) / multiplier
+
+
+def round_down(x, decimals=0):
+    multiplier = 10 ** decimals
+    return math.floor(x * multiplier) / multiplier
 
 
 def format_categoricals(data):

@@ -18,10 +18,12 @@
             <label for="region">Category</label>
             <select class="form-control" id="category" name="category">
               <option {% if request.form['category'] == 'Concert' %}selected="selected"{% endif %}>Concert</option>
-              <option {% if request.form['category'] == 'Comedy Show' %}selected="selected"{% endif %}>Comedy Show</option>
+              <option {% if request.form['category'] == 'Comedy Show' %}selected="selected"{% endif %}>Comedy</option>
               <option {% if request.form['category'] == 'Festival' %}selected="selected"{% endif %}>Festival</option>
               <option {% if request.form['category'] == 'Theatre' %}selected="selected"{% endif %}>Theatre</option>
               <option {% if request.form['category'] == 'Conference' %}selected="selected"{% endif %}>Conference</option>
+              <option {% if request.form['category'] == 'E-Commerce' %}selected="selected"{% endif %}>Sports</option>
+              <option {% if request.form['category'] == 'E-Commerce' %}selected="selected"{% endif %}>Streaming</option>
               <option {% if request.form['category'] == 'E-Commerce' %}selected="selected"{% endif %}>E-Commerce</option>
               <option {% if request.form['category'] == 'Other' %}selected="selected"{% endif %}>Other</option>
             </select>
@@ -80,6 +82,8 @@
         <div class="form-row">
           <div class="form-group col-md-6">
             <select class="form-control" id="region" name="region">
+              <option {% if request.form['region'] == 'Switzerland' %}selected="selected"{% endif %}>United States</option>
+              <option {% if request.form['region'] == 'Switzerland' %}selected="selected"{% endif %}>United Kingdom</option>
               <option {% if request.form['region'] == 'Germany' %}selected="selected"{% endif %}>Germany</option>
               <option {% if request.form['region'] == 'Austria' %}selected="selected"{% endif %}>Austria</option>
               <option {% if request.form['region'] == 'Switzerland' %}selected="selected"{% endif %}>Switzerland</option>
