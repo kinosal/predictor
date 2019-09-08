@@ -104,7 +104,7 @@ def upload(output):
 def print_results(regressor, X, X_scaled, y, y_scaler):
     """Print actuals and predictions"""
 
-    if 'svr' in str(regressor).lower():
+    if 'SVR' in str(regressor):
         predictions = y_scaler.inverse_transform(
             regressor.predict(X_scaled)).round(4)
     else:
@@ -133,9 +133,10 @@ def train(output, source='pg', models=['linear', 'tree', 'forest', 'svr']):
         print('Source not available.')
         return
 
+    data = pre.data_pipeline(data, output)
     [X, y, X_train, y_train, X_test, y_test, X_scaled, y_scaled,
      X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
-        = pre.pipeline(data, output)
+        = pre.split_pipeline(data, output)
     print('Data preprocessed.')
 
     regressors = build(
@@ -152,10 +153,10 @@ def train(output, source='pg', models=['linear', 'tree', 'forest', 'svr']):
         best_regressor.fit(X, y)
     print('Regressor fit.')
 
-    # print_results(best_regressor, X, X_scaled, y, y_scaler)
+    print_results(best_regressor, X, X_scaled, y, y_scaler)
 
-    # save(best_regressor, X, output)
-    # print('Regressor saved.')
+    save(best_regressor, X, output)
+    print('Regressor saved.')
 
-    # upload(output)
-    # print('Regressor uploaded.')
+    upload(output)
+    print('Regressor uploaded.')

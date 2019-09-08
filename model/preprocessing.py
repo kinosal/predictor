@@ -2,11 +2,11 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-def pipeline(data, output):
+def data_pipeline(data, output):
     """
-    Multi-step data preprocessing pipeline
+    Preprocessing pipeline part 1: Transform full data frame
     Arguments: Pandas dataframe, output column (dependent variable)
-    Returns: list of scaled and unscaled dependent and independent variables
+    Returns: Modified dataframe
     """
     data = cost_per_metric(data, output) if 'cost_per' in output \
                                          else data[data[output] > 0]
@@ -14,11 +14,19 @@ def pipeline(data, output):
     data = data.dropna(axis='index')
     data = create_other_buckets(data, threshold=.1)
     data = one_hot_encode(data)
+    return data
+
+def split_pipeline(data, output):
+    """
+    Preprocessing pipeline part 2: Split data into variables
+    Arguments: Pandas dataframe, output column (dependent variable)
+    Returns: List of scaled and unscaled dependent and independent variables
+    """
     y, X = data.iloc[:, 0], data.iloc[:, 1:]
     X_train, X_test, y_train, y_test = train_test_split(
         data.drop([output], axis=1), data[output], test_size=.2, random_state=1)
     X_scaled, y_scaled, X_train_scaled, y_train_scaled, X_test_scaled, \
-        y_scaler = scale_features(X, y, X_train, y_train, X_test)
+        y_scaler = scale(X, y, X_train, y_train, X_test)
     return [X, y, X_train, y_train, X_test, y_test, X_scaled, y_scaled,
             X_train_scaled, y_train_scaled, X_test_scaled, y_scaler]
 
@@ -62,7 +70,7 @@ def one_hot_encode(data):
                                   drop_first=True)
     return data
 
-def scale_features(X, y, X_train, y_train, X_test):
+def scale(X, y, X_train, y_train, X_test):
     """Scale dependent and independent variables"""
     X_scaler, y_scaler = StandardScaler(), StandardScaler()
 
