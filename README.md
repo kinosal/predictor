@@ -1,4 +1,4 @@
-# Variant Optimizer
+# Marketing Performance Predictor
 
 Source code for my blog post about [How to predict the success of your marketing campaign](https://medium.com/@nikolasschriefer)
 
