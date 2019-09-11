@@ -14,7 +14,4 @@ def powerlist(start, base, times):
     Helper function to create lists with exponential outputs,
     e.g. for search grids
     """
-    array = []
-    for i in range(0, times, 1):
-        array.append(start * base ** i)
-    return array
+    return [start * base ** i for i in range(0, times, 1)]

@@ -1,7 +1,7 @@
 """
 Run train(output) for full pipeline to train, select and save
 best model predicting campaign performance, e.g.
-python -c 'import training; training.train(output="impressions", source="csv", models=["linear"])'
+python -c 'import training; training.train(output="impressions")'
 """
 
 # Import libraries
@@ -9,8 +9,6 @@ import pandas as pd
 import psycopg2 as pg
 import boto3
 import joblib
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
 
 # Import secrets
 import config
@@ -87,16 +85,16 @@ def evaluate(regressors,
 
 def save(regressor, X, output):
     """Save model and columns to file"""
-    joblib.dump(regressor, output + '_model.pkl')
-    joblib.dump(list(X.columns), output + '_columns.pkl')
+    joblib.dump(regressor, './models/' + output + '_model.pkl')
+    joblib.dump(list(X.columns), './models/' + output + '_columns.pkl')
 
 
 def upload(output):
     """Upload model and columns to S3"""
     s3_connection = boto3.client('s3')
     bucket_name = 'cpx-prediction'
-    model_file = output + '_model.pkl'
-    columns_file = output + '_columns.pkl'
+    model_file = './models/' + output + '_model.pkl'
+    columns_file = './models/' + output + '_columns.pkl'
     s3_connection.upload_file(model_file, bucket_name, model_file)
     s3_connection.upload_file(columns_file, bucket_name, columns_file)
 

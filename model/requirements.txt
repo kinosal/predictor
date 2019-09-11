@@ -1,5 +1,8 @@
 numpy
 pandas
+statsmodels
+matplotlib
+seaborn
 sklearn
 joblib
 psycopg2

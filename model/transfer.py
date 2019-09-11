@@ -1,4 +1,6 @@
 """
+Run train_transfer(output) for full pipeline to train, select and save
+best transfer model predicting campaign performance from primary models, e.g.
 python -c 'import transfer; transfer.train_transfer("impressions")'
 """
 
@@ -17,10 +19,12 @@ def get_predictions(output):
     data = pre.data_pipeline(data, output)
 
     # Load primary models
-    direct_model = joblib.load(output + '_model.pkl')
-    direct_columns = joblib.load(output + '_columns.pkl')
-    cpx_model = joblib.load('cost_per_' + output[0:-1] + '_model.pkl')
-    cpx_columns = joblib.load('cost_per_' + output[0:-1] + '_columns.pkl')
+    direct_model = joblib.load('./models/' + output + '_model.pkl')
+    direct_columns = joblib.load('./models/' + output + '_columns.pkl')
+    cpx_model = \
+        joblib.load('./models/' + 'cost_per_' + output[0:-1] + '_model.pkl')
+    cpx_columns = \
+        joblib.load('./models/' + 'cost_per_' + output[0:-1] + '_columns.pkl')
 
     # Calculate and save primary predictions
     predictions = pd.DataFrame(columns=[output, 'direct', 'cpx'])
