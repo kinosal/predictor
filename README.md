@@ -1,6 +1,6 @@
 # Marketing Performance Predictor
 
-Source code for my blog post about [How to predict the success of your marketing campaign](https://medium.com/@nikolasschriefer)
+Source code for my blog post about [How to predict the success of your marketing campaign](https://medium.com/@nikolasschriefer/how-to-predict-the-success-of-your-marketing-campaign-579fbb153a97)
 
 Contains the code to train a prediction model for regression results with linear, decision tree, random forest and support vector regressors and provides a simple Python (Flask) web app to predict ad impressions, clicks and purchases (conversions) for digital (social media and search) marketing campaigns [predictor.stagelink.com](https://predictor.stagelink.com)
 
@@ -15,8 +15,6 @@ This project contains two parts, a regression model builder/trainer and a web ap
 ## Contribution
 
 Please submit any [issues](https://github.com/kinosal/predictor/issues) you have. If you have any ideas how to further improve the predictor please get in touch or feel free to fork this project and create a pull request with your proposed updates.
-
-########################
 
 ## Environment
 
