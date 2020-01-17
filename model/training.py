@@ -19,24 +19,22 @@ import preprocessing as pre
 import regression as reg
 
 
-def load_data_from_postgres(output):
-    """Load campaign data into dataframe from Postgres database"""
-    connection = pg.connect(config.marketing_production)
-    if output in ['impressions', 'clicks', 'purchases']:
-        output = 'SUM(results.' + output + ') AS ' + output
-    elif 'cost_per' in output:
-        metric = output.replace('cost_per_', '') + 's'
-        output = 'SUM(results.' + metric + ') AS ' + metric
-    select = 'SELECT ' + output + ', ' + open('campaigns.sql', 'r').read()
-    return pd.read_sql_query(select, connection)
+def postgres_to_csv(environment='production'):
+    connection = pg.connect(getattr(config, environment))
+    select = open('campaigns.sql', 'r').read()
+    data = pd.read_sql_query(select, connection)
+    data.to_csv('campaigns.csv', index=False)
 
 
-def load_data_from_csv(output):
+def trim(data, output):
+    """Trim data to only include desired output metric"""
     if 'cost_per' in output:
-        metric = output.replace('cost_per_', '') + 's'
+        keep = output.replace('cost_per_', '') + 's'
     else:
-        metric = output
-    return pd.read_csv(metric + '.csv')
+        keep = output
+    drop_candidates = ['id', 'impressions', 'clicks', 'purchases']
+    drops = [drop for drop in drop_candidates if drop != keep]
+    return data.drop(drops, axis=1)
 
 
 def build(X_train, y_train, X_train_scaled, y_train_scaled, models):
@@ -118,18 +116,17 @@ def print_results(regressor, X, X_scaled, y, y_scaler):
         print(prediction)
 
 
-def train(output, source='pg', models=['linear', 'tree', 'forest', 'svr']):
+def train(output, update=False, models=['linear', 'tree', 'forest', 'svr']):
     """Complete training pipeline"""
+    if update:
+        postgres_to_csv()
+        print('Data updated.')
 
-    if source == 'pg':
-        data = load_data_from_postgres(output)
-        print('Data loaded from Postgres.')
-    elif source == 'csv':
-        data = load_data_from_csv(output)
-        print('Data loaded from CSV.')
-    else:
-        print('Source not available.')
-        return
+    data = pd.read_csv('campaigns.csv')
+    print('Data loaded.')
+
+    data = trim(data, output)
+    print('Data trimmed.')
 
     data = pre.data_pipeline(data, output)
     [X, y, X_train, y_train, X_test, y_test, X_scaled, y_scaled,

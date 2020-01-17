@@ -6,4 +6,6 @@ __pycache__
 *.pkl
 *.pyc
 *.sql
+*.csv
+*.xlsx
 models/

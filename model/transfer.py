@@ -13,7 +13,10 @@ import preprocessing as pre
 
 def get_predictions(output):
     # Load campaign data
-    data = tra.load_data_from_postgres(output)
+    data = pd.read_csv('campaigns.csv')
+
+    # Trim data to only include desired output metric
+    data = tra.trim(data, output)
 
     # Preprocess data without train/test or y/X splitting
     data = pre.data_pipeline(data, output)
