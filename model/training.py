@@ -91,10 +91,12 @@ def upload(output):
     """Upload model and columns to S3"""
     s3_connection = boto3.client('s3')
     bucket_name = 'cpx-prediction'
-    model_file = './models/' + output + '_model.pkl'
-    columns_file = './models/' + output + '_columns.pkl'
-    s3_connection.upload_file(model_file, bucket_name, model_file)
-    s3_connection.upload_file(columns_file, bucket_name, columns_file)
+    model_file = output + '_model.pkl'
+    model_local = './models/' + model_file
+    columns_file = output + '_columns.pkl'
+    columns_local = './models/' + columns_file
+    s3_connection.upload_file(model_local, bucket_name, model_file)
+    s3_connection.upload_file(columns_local, bucket_name, columns_file)
 
 
 def print_results(regressor, X, X_scaled, y, y_scaler):
