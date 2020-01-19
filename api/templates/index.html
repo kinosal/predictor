@@ -68,12 +68,12 @@
             <label class="form-check-label" for="google_display">Google Display</label>
           </div>
         </div>
-        <!-- <div class="form-row">
+        <div class="form-row">
           <div class="form-group col-md-6">
-            <label for="followers">Social Media Followers</label>
-            <input class="form-control" name="followers" type="number" min="0" step="1" placeholder="10000" value="{{ request.form['followers'] }}" required>
+            <label for="likes">Facebook page likes (social media followers)</label>
+            <input class="form-control" name="likes" type="number" min="0" step="1" placeholder="10000" value="{{ request.form['likes'] }}" required>
           </div>
-        </div> -->
+        </div>
         <div class="form-row">
           <div class="col-md-6">
             <label for="region">Region</label>
@@ -83,7 +83,9 @@
           <div class="form-group col-md-6">
             <select class="form-control" id="region" name="region">
               <option {% if request.form['region'] == 'United States' %}selected="selected"{% endif %}>United States</option>
+              <option {% if request.form['region'] == 'Canada' %}selected="selected"{% endif %}>Canada</option>
               <option {% if request.form['region'] == 'United Kingdom' %}selected="selected"{% endif %}>United Kingdom</option>
+              <option {% if request.form['region'] == 'Ireland' %}selected="selected"{% endif %}>Ireland</option>
               <option {% if request.form['region'] == 'Germany' %}selected="selected"{% endif %}>Germany</option>
               <option {% if request.form['region'] == 'Austria' %}selected="selected"{% endif %}>Austria</option>
               <option {% if request.form['region'] == 'Switzerland' %}selected="selected"{% endif %}>Switzerland</option>
@@ -91,8 +93,8 @@
             </select>
           </div>
           <div class="form-group form-check form-check-inline col-md">
-            <input class="form-check-input" id="tour" name="tour" type="checkbox" {% if request.form['tour'] == 'on' %}checked{% endif %}>
-            <label class="form-check-label" for="tour">Tour (multiple locations)</label>
+            <input class="form-check-input" id="targets" name="targets" type="checkbox" {% if request.form['targets'] == 'on' %}checked{% endif %}>
+            <label class="form-check-label" for="targets">Multiple targets (e.g. cities)</label>
           </div>
         </div>
         <div class="form-row">

@@ -40,9 +40,10 @@ def root():
                     data[channel] = 1
             except KeyError:
                 data[channel] = 0
+        data['facebook_likes'] = int(request.form['likes'])
         data['region_' + request.form['region'].lower()] = 1
         try:
-            if request.form['tour'] == 'on':
+            if request.form['targets'] == 'on':
                 data['locality_single'] = 0
         except KeyError:
             data['locality_single'] = 1
