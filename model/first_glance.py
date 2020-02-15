@@ -1,7 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import training
 
 # Expand displayed data rows and columns
 pd.set_option('display.max_rows', 500)
@@ -9,7 +8,7 @@ pd.set_option('display.max_columns', 500)
 
 # Load data
 output = 'impressions'
-data = training.load_data_from_csv(output + '.csv')
+data = pd.read_csv(output + '.csv')
 
 # Show data shape (size), columns and first 10 rows
 print(data.shape)

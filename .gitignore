@@ -7,5 +7,6 @@ __pycache__
 *.pyc
 *.sql
 *.csv
+!impressions.csv
 *.xlsx
 models/
