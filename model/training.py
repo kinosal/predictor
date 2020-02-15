@@ -118,8 +118,10 @@ def print_results(regressor, X, X_scaled, y, y_scaler):
         print(prediction)
 
 
-def train(output, update=False, models=['linear', 'tree', 'forest', 'svr']):
+def train(output, update=False,
+          models=['linear', 'tree', 'forest', 'svr']):
     """Complete training pipeline"""
+
     if update:
         postgres_to_csv()
         print('Data updated.')

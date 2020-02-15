@@ -1,7 +1,7 @@
 """
 Run train_transfer(output) for full pipeline to train, select and save
 best transfer model predicting campaign performance from primary models, e.g.
-python -c 'import transfer; transfer.train_transfer("impressions")'
+python -c 'import transfer; transfer.train("impressions")'
 """
 
 
@@ -44,7 +44,7 @@ def get_predictions(output):
     return predictions
 
 
-def train_transfer(output, models=['linear', 'tree', 'forest', 'svr']):
+def train(output, models=['linear', 'tree', 'forest', 'svr', 'xgb']):
     data = get_predictions(output)
     print('Primary predictions loaded.')
 
