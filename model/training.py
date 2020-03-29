@@ -37,48 +37,59 @@ def trim(data, output):
     return data.drop(drops, axis=1)
 
 
-def build(X_train, y_train, X_train_scaled, y_train_scaled, models):
+def build(X_train, y_train, X_train_scaled, y_train_scaled,
+          X_train_cat, y_train_cat, models):
     """Build and return regression models"""
-    regression = \
-        reg.Regression(X_train, y_train, X_train_scaled, y_train_scaled)
+    regression = reg.Regression(X_train, y_train, X_train_scaled,
+                                y_train_scaled, X_train_cat, y_train_cat)
     regressors = []
     for model in models:
         regressors.append(getattr(regression, model)())
     return regressors
 
 
-def evaluate(regressors,
-             X_train, y_train, X_train_scaled, y_train_scaled,
-             X_test, y_test, X_test_scaled, y_scaler):
+def evaluate(regressors, X_train, y_train, X_train_scaled, y_train_scaled,
+             X_test, y_test, X_test_scaled, y_scaler, X_train_cat, y_train_cat,
+             X_test_cat, y_test_cat):
     """
     Evaluate models by fitting on full training set and
     calculating training and test accuracies;
     return best regressor
     """
 
-    training_accuracies = {}
-    test_accuracies = {}
+    training_accuracies = []
+    test_accuracies = []
     for regressor in regressors:
         if 'SVR' in str(regressor):
             regressor.fit(X_train_scaled, y_train_scaled)
-            training_accuracies[regressor] = hel.mean_relative_accuracy(
+            training_accuracy = hel.mean_relative_accuracy(
                 y_scaler.inverse_transform(regressor.predict(
                     X_train_scaled)), y_train)
-            test_accuracies[regressor] = hel.mean_relative_accuracy(
+            test_accuracy = hel.mean_relative_accuracy(
                 y_scaler.inverse_transform(regressor.predict(
                     X_test_scaled)), y_test)
+        elif 'Cat' in str(regressor):
+            regressor.fit(X_train_cat, y_train_cat)
+            training_accuracy = hel.mean_relative_accuracy(
+                regressor.predict(X_train_cat), y_train_cat)
+            test_accuracy = hel.mean_relative_accuracy(
+                regressor.predict(X_test_cat), y_test_cat)
         else:
             regressor.fit(X_train, y_train)
-            training_accuracies[regressor] = hel.mean_relative_accuracy(
+            training_accuracy = hel.mean_relative_accuracy(
                 regressor.predict(X_train), y_train)
-            test_accuracies[regressor] = hel.mean_relative_accuracy(
+            test_accuracy = hel.mean_relative_accuracy(
                 regressor.predict(X_test), y_test)
-        print(str(regressor).split('(')[0] + '_train_accu: ' +
-              str(training_accuracies[regressor]))
-        print(str(regressor).split('(')[0] + '_test_accu: ' +
-              str(test_accuracies[regressor]))
 
-    return max(test_accuracies, key=test_accuracies.get)
+        print(str(regressor).split('(')[0].split('.')[0].replace('<', '') +
+              '_train_accu: ' + str(training_accuracy))
+        print(str(regressor).split('(')[0].split('.')[0].replace('<', '') +
+              '_test_accu: ' + str(test_accuracy))
+
+        training_accuracies.append(training_accuracy)
+        test_accuracies.append(test_accuracy)
+
+    return regressors[test_accuracies.index(max(test_accuracies))]
 
 
 def save(regressor, X, output):
@@ -99,12 +110,14 @@ def upload(output):
     s3_connection.upload_file(columns_local, bucket_name, columns_file)
 
 
-def print_results(regressor, X, X_scaled, y, y_scaler):
+def print_results(regressor, X, X_scaled, y, y_scaler, X_cat):
     """Print actuals and predictions"""
 
     if 'SVR' in str(regressor):
         predictions = y_scaler.inverse_transform(
             regressor.predict(X_scaled)).round(4)
+    elif 'Cat' in str(regressor):
+        predictions = regressor.predict(X_cat).round(4)
     else:
         predictions = regressor.predict(X).round(4)
 
@@ -119,7 +132,7 @@ def print_results(regressor, X, X_scaled, y, y_scaler):
 
 
 def train(output, update=False,
-          models=['linear', 'tree', 'forest', 'svr']):
+          models=['linear', 'tree', 'forest', 'svr', 'cat']):
     """Complete training pipeline"""
 
     if update:
@@ -132,27 +145,32 @@ def train(output, update=False,
     data = trim(data, output)
     print('Data trimmed.')
 
-    data = pre.data_pipeline(data, output)
+    data, data_cat = pre.data_pipeline(data, output)
     [X, y, X_train, y_train, X_test, y_test, X_scaled, y_scaled,
      X_train_scaled, y_train_scaled, X_test_scaled, y_scaler] \
-        = pre.split_pipeline(data, output)
+        = pre.split_pipeline(data, output, encoded=True)
+    [X_cat, y_cat, X_train_cat, y_train_cat, X_test_cat, y_test_cat] = \
+        pre.split_pipeline(data_cat, output, encoded=False)
     print('Data preprocessed.')
 
-    regressors = build(
-        X_train, y_train, X_train_scaled, y_train_scaled, models)
+    regressors = build(X_train, y_train, X_train_scaled, y_train_scaled,
+                       X_train_cat, y_train_cat, models)
 
     best_regressor = evaluate(regressors, X_train, y_train, X_train_scaled,
                               y_train_scaled, X_test, y_test, X_test_scaled,
-                              y_scaler)
+                              y_scaler, X_train_cat, y_train_cat, X_test_cat,
+                              y_test_cat)
     print('Regressors evaluated. Best regressor is:\n' + str(best_regressor))
 
     if 'SVR' in str(best_regressor):
         best_regressor.fit(X_scaled, y_scaled)
+    elif 'Cat' in str(best_regressor):
+        best_regressor.fit(X_cat, y_cat)
     else:
         best_regressor.fit(X, y)
     print('Regressor fit.')
 
-    print_results(best_regressor, X, X_scaled, y, y_scaler)
+    print_results(best_regressor, X, X_scaled, y, y_scaler, X_cat)
 
     save(best_regressor, X, output)
     print('Regressor saved.')

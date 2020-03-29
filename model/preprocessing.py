@@ -13,10 +13,11 @@ def data_pipeline(data, output):
     data = drop_columns(data, output, threshold=.5)
     data = data.dropna(axis='index')
     data = create_other_buckets(data, threshold=.1)
+    data_cat = data
     data = one_hot_encode(data)
-    return data
+    return data, data_cat
 
-def split_pipeline(data, output):
+def split_pipeline(data, output, encoded=True):
     """
     Preprocessing pipeline part 2: Split data into variables
     Arguments: Pandas dataframe, output column (dependent variable)
@@ -25,10 +26,12 @@ def split_pipeline(data, output):
     y, X = data.iloc[:, 0], data.iloc[:, 1:]
     X_train, X_test, y_train, y_test = train_test_split(
         data.drop([output], axis=1), data[output], test_size=.2, random_state=1)
-    X_scaled, y_scaled, X_train_scaled, y_train_scaled, X_test_scaled, \
-        y_scaler = scale(X, y, X_train, y_train, X_test)
-    return [X, y, X_train, y_train, X_test, y_test, X_scaled, y_scaled,
-            X_train_scaled, y_train_scaled, X_test_scaled, y_scaler]
+    if encoded:
+        X_scaled, y_scaled, X_train_scaled, y_train_scaled, X_test_scaled, \
+            y_scaler = scale(X, y, X_train, y_train, X_test)
+        return [X, y, X_train, y_train, X_test, y_test, X_scaled, y_scaled,
+                X_train_scaled, y_train_scaled, X_test_scaled, y_scaler]
+    return [X, y, X_train, y_train, X_test, y_test]
 
 def cost_per_metric(data, output):
     """Create 'cost_per_...' column and remove data where output is 0 or NaN"""

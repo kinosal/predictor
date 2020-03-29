@@ -19,7 +19,7 @@ def get_predictions(output):
     data = tra.trim(data, output)
 
     # Preprocess data without train/test or y/X splitting
-    data = pre.data_pipeline(data, output)
+    data, _ = pre.data_pipeline(data, output)
 
     # Load primary models
     direct_model = joblib.load('./models/' + output + '_model.pkl')
@@ -44,7 +44,7 @@ def get_predictions(output):
     return predictions
 
 
-def train(output, models=['linear', 'tree', 'forest', 'svr']):
+def train(output, models=['linear', 'tree', 'forest', 'svr', 'cat']):
     data = get_predictions(output)
     print('Primary predictions loaded.')
 
@@ -53,12 +53,12 @@ def train(output, models=['linear', 'tree', 'forest', 'svr']):
         = pre.split_pipeline(data, output)
     print('Data preprocessed.')
 
-    regressors = tra.build(
-        X_train, y_train, X_train_scaled, y_train_scaled, models)
-
+    regressors = tra.build(X_train, y_train, X_train_scaled, y_train_scaled,
+                           X_train, y_train, models)
     best_regressor = tra.evaluate(
         regressors, X_train, y_train, X_train_scaled, y_train_scaled,
-        X_test, y_test, X_test_scaled, y_scaler)
+        X_test, y_test, X_test_scaled, y_scaler, X_train, y_train,
+        X_test, y_test)
     print('Regressors evaluated. Best regressor is:\n' + str(best_regressor))
 
     if 'SVR' in str(best_regressor):
@@ -67,7 +67,7 @@ def train(output, models=['linear', 'tree', 'forest', 'svr']):
         best_regressor.fit(X, y)
     print('Regressor fit.')
 
-    tra.print_results(best_regressor, X, X_scaled, y, y_scaler)
+    tra.print_results(best_regressor, X, X_scaled, y, y_scaler, X)
 
     tra.save(best_regressor, X, output + '_transfer')
     print('Regressor saved.')

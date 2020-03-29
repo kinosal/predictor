@@ -11,30 +11,29 @@ import training as tra
 import preprocessing as pre
 
 
-def calculate(output, model, source='csv'):
-    """Determine feature importance for spcified model"""
+def calculate(output, model):
+    """Determine feature importance for specified model"""
 
-    if source == 'pg':
-        data = tra.load_data_from_postgres(output)
-        print('Data loaded from Postgres.')
-    elif source == 'csv':
-        data = tra.load_data_from_csv(output)
-        print('Data loaded from CSV.')
-    else:
-        print('Source not available.')
-        return
+    data = pd.read_csv('campaigns.csv')
+    print('Data loaded.')
+
+    data = tra.trim(data, output)
+    print('Data trimmed.')
 
     # Add random column to data
     np.random.seed(seed=0)
     data['random'] = np.random.random(size=len(data))
 
-    data = pre.data_pipeline(data, output)
-    [_, _, X_train, y_train, _, _, _, _, X_train_scaled, y_train_scaled,
-     _, y_scaler] = pre.split_pipeline(data, output)
+    data, data_cat = pre.data_pipeline(data, output)
+    [_, _, X_train, y_train, _, _, _, _,
+     X_train_scaled, y_train_scaled, _, y_scaler] \
+        = pre.split_pipeline(data, output, encoded=True)
+    [_, _, X_train_cat, y_train_cat, _, _] = \
+        pre.split_pipeline(data_cat, output, encoded=False)
     print('Data preprocessed.')
 
-    regressor = \
-        tra.build(X_train, y_train, X_train_scaled, y_train_scaled, [model])[0]
+    regressor = tra.build(X_train, y_train, X_train_scaled, y_train_scaled,
+                          X_train_cat, y_train_cat, [model])[0]
 
     model_clone = clone(regressor)
 

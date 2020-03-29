@@ -6,6 +6,7 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
 from xgboost import XGBRegressor
+from catboost import CatBoostRegressor
 from skopt import BayesSearchCV
 from skopt.space import Integer, Real
 import statsmodels.api as sm
@@ -34,11 +35,14 @@ class Regression:
     Regression instance contains functions to build linear, tree, forest and
     SVR models, expects scaled (for SVR) and unscaled (for others) training data
     """
-    def __init__(self, X_train, y_train, X_train_scaled, y_train_scaled):
+    def __init__(self, X_train, y_train, X_train_scaled, y_train_scaled,
+                 X_train_cat, y_train_cat):
         self.X_train = X_train
         self.y_train = y_train
         self.X_train_scaled = X_train_scaled
         self.y_train_scaled = y_train_scaled
+        self.X_train_cat = X_train_cat
+        self.y_train_cat = y_train_cat
         self.scorer = make_scorer(hel.mean_relative_accuracy)
 
     def linear(self, verbose=0):
@@ -79,7 +83,7 @@ class Regression:
                             'random_state': [1]}]
         tree_search = BayesSearchCV(
             estimator=DecisionTreeRegressor(), search_spaces=tree_parameters,
-            scoring=self.scorer, cv=5, n_jobs=-1, n_iter=20
+            scoring=self.scorer, cv=5, n_jobs=-1, n_iter=50
         )
         stopper = Stopper(tree_search)
         tree_search_result = tree_search.fit(
@@ -113,7 +117,7 @@ class Regression:
                               'random_state': [1], 'n_jobs': [-1]}]
         forest_search = BayesSearchCV(
             estimator=RandomForestRegressor(), search_spaces=forest_parameters,
-            scoring=self.scorer, cv=5, n_jobs=-1, n_iter=20
+            scoring=self.scorer, cv=5, n_jobs=-1, n_iter=50
         )
         stopper = Stopper(forest_search)
         forest_search_result = forest_search.fit(
@@ -131,7 +135,8 @@ class Regression:
     def svr(self):
         """
         Construct a support vector regressor and calculate the training score
-        using scaled training data and parameter search with 5-fold cross validation
+        using scaled training data and parameter search
+        with 5-fold cross validation
         """
 
         # svr_parameters = [{'kernel': ['linear', 'rbf'],
@@ -158,7 +163,7 @@ class Regression:
                            'gamma': ['scale']}]
         svr_search = BayesSearchCV(
             estimator=SVR(), search_spaces=svr_parameters,
-            scoring=self.scorer, cv=5, n_jobs=-1, n_iter=20
+            scoring=self.scorer, cv=5, n_jobs=-1, n_iter=50
         )
         stopper = Stopper(svr_search)
         svr_search_result = svr_search.fit(
@@ -190,22 +195,7 @@ class Regression:
 
         estimator = XGBRegressor(booster='gbtree', objective='reg:squarederror')
 
-        # Traditional Grid Search (slow)
-        # xgb_parameters = [{
-        #     'learning_rate': [x/100 for x in range(5, 10, 1)],
-        #     'min_split_loss': [x/10 for x in range(1, 5, 1)],
-        #     'max_depth': list(range(5, 10, 1)),
-        #     'min_child_weight': list(range(1, 5, 1)),
-        #     'colsample_bytree': [x/10 for x in range(5, 10, 1)],
-        #     'random_state': [1]
-        # }]
-        #
-        # xgb_search = GridSearchCV(
-        #     estimator=estimator, param_grid=xgb_parameters,
-        #     scoring=self.scorer, cv=5, n_jobs=-1, iid=False
-        # )
-
-        # Bayes Search (faster)
+        # Bayes Search
         xgb_parameters = {
             'learning_rate': Real(0.05, 0.5),
             'min_split_loss': Real(0.1, 0.5),
@@ -215,7 +205,7 @@ class Regression:
         }
         xgb_search = BayesSearchCV(
             estimator=estimator, search_spaces=xgb_parameters,
-            scoring=self.scorer, cv=5, n_jobs=-1, n_iter=20
+            scoring=self.scorer, cv=5, n_jobs=-1, n_iter=50
         )
         stopper = Stopper(xgb_search)
         xgb_search_result = xgb_search.fit(
@@ -232,4 +222,42 @@ class Regression:
             min_split_loss=best_xgb_parameters['min_split_loss'],
             max_depth=best_xgb_parameters['max_depth'],
             min_child_weight=best_xgb_parameters['min_child_weight'],
-            random_state=1, n_jobs=-1)
+            random_state=1)
+
+    def cat(self):
+        """
+        Construct a gradient boosting regressor and calculate the training score
+        using training data and parameter search with 5-fold cross validation
+        """
+
+        cats = list(self.X_train_cat.select_dtypes('object').columns)
+        estimator = CatBoostRegressor(loss_function='RMSE', cat_features=cats,
+                                      random_state=1, verbose=0)
+
+        cat_parameters = {
+            'n_estimators': Integer(10, 200),
+            'max_depth': Integer(2, 10),
+            'learning_rate': Real(0.01, 0.1),
+            'random_strength': Real(1, 10),
+            'random_state': [1]
+        }
+        cat_search = BayesSearchCV(
+            estimator=estimator, search_spaces=cat_parameters,
+            scoring=self.scorer, cv=5, n_jobs=-1, n_iter=50
+        )
+        stopper = Stopper(cat_search)
+        cat_search_result = cat_search.fit(
+            self.X_train_cat, self.y_train_cat, callback=stopper.on_step)
+        best_cat_parameters = dict(cat_search_result.best_params_)
+        cat_score = cat_search_result.best_score_
+
+        print('Best Cat params: ' + str(best_cat_parameters))
+        print('Cat score: ' + str(cat_score))
+
+        return CatBoostRegressor(
+            loss_function='RMSE', cat_features=cats,
+            n_estimators=best_cat_parameters['n_estimators'],
+            max_depth=best_cat_parameters['max_depth'],
+            learning_rate=best_cat_parameters['learning_rate'],
+            random_strength=best_cat_parameters['random_strength'],
+            random_state=1, verbose=0)
