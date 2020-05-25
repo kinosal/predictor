@@ -33,7 +33,7 @@ def trim(data, output):
     else:
         keep = output
     drop_candidates = ['id', 'impressions', 'clicks', 'purchases']
-    drops = [drop for drop in drop_candidates if drop != keep]
+    drops = [drop for drop in drop_candidates if drop != keep and drop in data.columns]
     return data.drop(drops, axis=1)
 
 

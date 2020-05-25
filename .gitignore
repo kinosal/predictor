@@ -1,5 +1,6 @@
 .DS_Store
 .env
+.venv
 config.py
 zappa_settings.json
 __pycache__
