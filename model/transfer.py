@@ -44,7 +44,7 @@ def get_predictions(output):
     return predictions
 
 
-def train(output, models=['linear', 'tree', 'forest', 'svr', 'cat']):
+def train(output, models=['linear', 'forest', 'svr']):
     data = get_predictions(output)
     print('Primary predictions loaded.')
 

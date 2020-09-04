@@ -1,10 +1,10 @@
 import datetime
 import math
 from flask import Flask, request, jsonify, render_template
-from boto.s3.connection import S3Connection
+import boto3
 import pandas as pd
 import joblib
-import config
+# import config
 
 
 app = Flask(__name__)
@@ -42,11 +42,11 @@ def root():
                 data[channel] = 0
         data['facebook_likes'] = int(request.form['likes'])
         data['region_' + request.form['region'].lower()] = 1
-        try:
-            if request.form['targets'] == 'on':
-                data['locality_single'] = 0
-        except KeyError:
-            data['locality_single'] = 1
+        # try:
+        #     if request.form['targets'] == 'on':
+        #         data['locality_single'] = 0
+        # except KeyError:
+        #     data['locality_single'] = 1
         data['category_' + request.form['category'].lower()] = 1
         data['shop_' + request.form['shop'].lower()] = 1
         predictions = predict_metrics(data)
@@ -126,12 +126,15 @@ def predict(data, output):
 
 
 def load_from_bucket(key):
-    connection = S3Connection(aws_access_key_id=config.aws_access_key_id,
-                              aws_secret_access_key=config.aws_secret_access_key,
-                              is_secure=False)
-    bucket = connection.get_bucket('cpx-prediction')
     local_file = '/tmp/' + key
-    bucket.get_key(key).get_contents_to_filename(local_file)
+    # connection = S3Connection(aws_access_key_id=config.aws_access_key_id,
+    #                           aws_secret_access_key=config.aws_secret_access_key,
+    #                           is_secure=False)
+    # bucket = connection.get_bucket('cpx-prediction')
+    # bucket.get_key(key).get_contents_to_filename(local_file)
+    s3_resource = boto3.resource('s3')
+    bucket = s3_resource.Bucket('cpx-prediction')
+    bucket.download_file(key, local_file)
     model = joblib.load(local_file)
     return model
 
