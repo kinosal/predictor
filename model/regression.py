@@ -5,8 +5,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
-from xgboost import XGBRegressor
-from catboost import CatBoostRegressor
+# from xgboost import XGBRegressor
+# from catboost import CatBoostRegressor
 from skopt import BayesSearchCV
 from skopt.space import Integer, Real
 import statsmodels.api as sm

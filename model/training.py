@@ -98,7 +98,7 @@ def save(regressor, X, output):
     joblib.dump(list(X.columns), './models/' + output + '_columns.pkl')
 
 
-def upload(output):
+def upload_to_s3(output):
     """Upload model and columns to S3"""
     s3_connection = boto3.client('s3')
     bucket_name = 'cpx-prediction'
@@ -131,7 +131,7 @@ def print_results(regressor, X, X_scaled, y, y_scaler, X_cat):
         print(prediction)
 
 
-def train(output, update=False,
+def train(output, update=False, upload=False,
           models=['linear', 'forest', 'svr']):
     """Complete training pipeline"""
 
@@ -175,5 +175,6 @@ def train(output, update=False,
     save(best_regressor, X, output)
     print('Regressor saved.')
 
-    upload(output)
-    print('Regressor uploaded.')
+    if upload:
+        upload_to_s3(output)
+        print('Regressor uploaded.')
