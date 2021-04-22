@@ -4,7 +4,6 @@ from flask import Flask, request, jsonify, render_template
 import boto3
 import pandas as pd
 import joblib
-# import config
 
 
 app = Flask(__name__)
