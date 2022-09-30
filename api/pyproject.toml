@@ -9,7 +9,7 @@ python = "^3.8"
 flask = "^1.1"
 zappa = "^0.52"
 pandas = "^1.1"
-joblib = "^1.0"
+joblib = "^1.2"
 sklearn = "^0.0"
 scikit-learn = "^0.23.2"  # latest version supported by scikit-optimize as of now
 
