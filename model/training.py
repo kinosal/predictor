@@ -132,7 +132,7 @@ def print_results(regressor, X, X_scaled, y, y_scaler, X_cat):
 
 
 def train(output, update=False, upload=False,
-          models=['linear', 'forest', 'svr']):
+          models=['linear', 'forest']):
     """Complete training pipeline"""
 
     if update:

@@ -22,6 +22,7 @@ class Stopper:
 
     def on_step(self, result):
         new_best_score = self.search.best_score_
+        # TODO: Fix AttributeError for BayesSearchCV
         # print("New best score: %s" % new_best_score)
         if new_best_score <= self.best_score:
             self.n_stagnations += 1
@@ -57,8 +58,7 @@ class Regression:
             model = sm.OLS(self.y_train, sm.add_constant(self.X_train)).fit()
             print(model.summary())
 
-        linear_regressor = LinearRegression(fit_intercept=True, normalize=False,
-                                            copy_X=True)
+        linear_regressor = LinearRegression(fit_intercept=True, copy_X=True)
         linear_score = np.mean(cross_val_score(
             estimator=linear_regressor, X=self.X_train, y=self.y_train,
             cv=5, scoring=self.scorer))
@@ -71,23 +71,27 @@ class Regression:
         using training data and parameter search with 5-fold cross validation
         """
 
-        # tree_parameters = [{'min_samples_leaf': list(range(2, 10, 1)),
-        #                     'criterion': ['mae', 'mse'],
-        #                     'random_state': [1]}]
-        # tree_search = GridSearchCV(estimator=DecisionTreeRegressor(),
-        #                            param_grid=tree_parameters,
-        #                            scoring=self.scorer, cv=5, n_jobs=-1,
-        #                            iid=False)
-        tree_parameters = [{'min_samples_leaf': Integer(2, 10),
-                            'criterion': ['mae', 'mse'],
+        tree_parameters = [{'min_samples_leaf': list(range(2, 10, 1)),
+                            'criterion': ['absolute_error', 'squared_error'],
                             'random_state': [1]}]
-        tree_search = BayesSearchCV(
-            estimator=DecisionTreeRegressor(), search_spaces=tree_parameters,
-            scoring=self.scorer, cv=5, n_jobs=-1, n_iter=50
+        tree_search = GridSearchCV(
+            estimator=DecisionTreeRegressor(),
+            param_grid=tree_parameters,
+            scoring=self.scorer, cv=5, n_jobs=-1,
         )
-        stopper = Stopper(tree_search)
+        # tree_parameters = [{'min_samples_leaf': Integer(2, 10),
+        #                     'criterion': ['absolute_error', 'squared_error'],
+        #                     'random_state': [1]}]
+        # tree_search = BayesSearchCV(
+        #     estimator=DecisionTreeRegressor(), search_spaces=tree_parameters,
+        #     scoring=self.scorer, cv=5, n_jobs=-1, n_iter=50
+        # )
+        # stopper = Stopper(tree_search)
         tree_search_result = tree_search.fit(
-            self.X_train, self.y_train, callback=stopper.on_step)
+            self.X_train,
+            self.y_train,
+            # callback=stopper.on_step,
+        )
         best_tree_parameters = dict(tree_search_result.best_params_)
         tree_score = tree_search_result.best_score_
         print('Best tree params: ' + str(best_tree_parameters))
@@ -103,25 +107,37 @@ class Regression:
         using training data and parameter search with 5-fold cross validation
         """
 
-        # forest_parameters = [{'n_estimators': hel.powerlist(10, 2, 4),
-        #                       'min_samples_leaf': list(range(2, 10, 1)),
-        #                       'criterion': ['mae', 'mse'],
-        #                       'random_state': [1], 'n_jobs': [-1]}]
-        # forest_search = GridSearchCV(estimator=RandomForestRegressor(),
-        #                              param_grid=forest_parameters,
-        #                              scoring=self.scorer, cv=5, n_jobs=-1,
-        #                              iid=False)
-        forest_parameters = [{'n_estimators': Integer(10, 200),
-                              'min_samples_leaf': Integer(2, 10),
-                              'criterion': ['mae', 'mse'],
+        forest_parameters = [{'n_estimators': hel.powerlist(10, 2, 4),
+                              'min_samples_leaf': list(range(2, 10, 1)),
+                              'criterion': ['absolute_error', 'squared_error'],
                               'random_state': [1], 'n_jobs': [-1]}]
-        forest_search = BayesSearchCV(
-            estimator=RandomForestRegressor(), search_spaces=forest_parameters,
-            scoring=self.scorer, cv=5, n_jobs=-1, n_iter=50
+        forest_search = GridSearchCV(
+            estimator=RandomForestRegressor(),
+            param_grid=forest_parameters,
+            scoring=self.scorer, cv=5, n_jobs=-1,
         )
-        stopper = Stopper(forest_search)
+        # forest_parameters = [
+        #     {
+        #         'n_estimators': Integer(10, 200),
+        #         'min_samples_leaf': Integer(2, 10),
+        #         'criterion': ['absolute_error', 'squared_error'],
+        #         'random_state': [1], 'n_jobs': [-1],
+        #     }
+        # ]
+        # forest_search = BayesSearchCV(
+        #     estimator=RandomForestRegressor(),
+        #     search_spaces=forest_parameters,
+        #     scoring=self.scorer,
+        #     cv=5,
+        #     n_jobs=-1,
+        #     n_iter=50,
+        # )
+        # stopper = Stopper(forest_search)
         forest_search_result = forest_search.fit(
-            self.X_train, self.y_train, callback=stopper.on_step)
+            self.X_train,
+            self.y_train,
+            # callback=stopper.on_step,
+        )
         best_forest_parameters = dict(forest_search_result.best_params_)
         forest_score = forest_search_result.best_score_
         print('Best forest params: ' + str(best_forest_parameters))

@@ -11,9 +11,9 @@ psycopg2-binary = "^2.8"
 boto3 = "^1.14"
 joblib = "^1.0"
 sklearn = "^0.0"
-scikit-learn = "^0.23.2"  # latest version supported by scikit-optimize as of now
-scikit-optimize = "^0.8"
-statsmodels = "^0.12"
+scikit-learn = "^1.1"
+scikit-optimize = "^0.9"
+statsmodels = "^0.13"
 # xgboost = "^1.2"  # does not work on apple silicon (m1)
 # catboost = "^0.24"  # does not work on apple silicon (m1)
 
