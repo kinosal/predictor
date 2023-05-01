@@ -6,7 +6,7 @@ authors = ["Nikolas Schriefer <info@nikolasschriefer.de>"]
 
 [tool.poetry.dependencies]
 python = "^3.8.6"
-flask = "^2.2"
+flask = "^2.3"
 zappa = "^0.56"
 pandas = "^1.1"
 joblib = "^1.0"
