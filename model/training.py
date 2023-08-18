@@ -20,6 +20,7 @@ import regression as reg
 
 
 def postgres_to_csv(environment='production'):
+    """Connect to PostgreSQL database and export data to CSV file."""
     connection = pg.connect(getattr(config, environment))
     select = open('campaigns.sql', 'r').read()
     data = pd.read_sql_query(select, connection)
@@ -27,7 +28,7 @@ def postgres_to_csv(environment='production'):
 
 
 def trim(data, output):
-    """Trim data to only include desired output metric"""
+    """Trim data to only include desired output metric."""
     if 'cost_per' in output:
         keep = output.replace('cost_per_', '') + 's'
     else:
@@ -39,7 +40,7 @@ def trim(data, output):
 
 def build(X_train, y_train, X_train_scaled, y_train_scaled,
           X_train_cat, y_train_cat, models):
-    """Build and return regression models"""
+    """Build and return regression models."""
     regression = reg.Regression(X_train, y_train, X_train_scaled,
                                 y_train_scaled, X_train_cat, y_train_cat)
     regressors = []
@@ -51,12 +52,7 @@ def build(X_train, y_train, X_train_scaled, y_train_scaled,
 def evaluate(regressors, X_train, y_train, X_train_scaled, y_train_scaled,
              X_test, y_test, X_test_scaled, y_scaler, X_train_cat, y_train_cat,
              X_test_cat, y_test_cat):
-    """
-    Evaluate models by fitting on full training set and
-    calculating training and test accuracies;
-    return best regressor
-    """
-
+    """Evaluate models, calculate accuracies, and return best regressor."""
     training_accuracies = []
     test_accuracies = []
     for regressor in regressors:
@@ -93,13 +89,13 @@ def evaluate(regressors, X_train, y_train, X_train_scaled, y_train_scaled,
 
 
 def save(regressor, X, output):
-    """Save model and columns to file"""
+    """Save model and columns to file."""
     joblib.dump(regressor, './models/' + output + '_model.pkl')
     joblib.dump(list(X.columns), './models/' + output + '_columns.pkl')
 
 
 def upload_to_s3(output):
-    """Upload model and columns to S3"""
+    """Upload model and columns to S3."""
     s3_connection = boto3.client('s3')
     bucket_name = 'cpx-prediction'
     model_file = output + '_model.pkl'
@@ -111,8 +107,7 @@ def upload_to_s3(output):
 
 
 def print_results(regressor, X, X_scaled, y, y_scaler, X_cat):
-    """Print actuals and predictions"""
-
+    """Print actuals and predictions."""
     if 'SVR' in str(regressor):
         predictions = y_scaler.inverse_transform(
             regressor.predict(X_scaled)).round(4)
@@ -131,10 +126,18 @@ def print_results(regressor, X, X_scaled, y, y_scaler, X_cat):
         print(prediction)
 
 
-def train(output, update=False, upload=False,
-          models=['linear', 'forest']):
-    """Complete training pipeline"""
+def train(
+        output, update=False, upload=False, models=['linear', 'forest'], print_output=True,
+    ):
+    """
+    Run complete training pipeline.
 
+    Parameters:
+    output (str): The output metric to train the model on (e.g. "impressions")
+    update (bool, optional): If True, updates the data from the PostgreSQL database. Defaults to False.
+    upload (bool, optional): If True, uploads the trained model to S3. Defaults to False.
+    models (list, optional): List of models to train. Defaults to ['linear', 'forest'].
+    """
     if update:
         postgres_to_csv()
         print('Data updated.')
@@ -170,7 +173,8 @@ def train(output, update=False, upload=False,
         best_regressor.fit(X, y)
     print('Regressor fit.')
 
-    print_results(best_regressor, X, X_scaled, y, y_scaler, X_cat)
+    if print_output:
+        print_results(best_regressor, X, X_scaled, y, y_scaler, X_cat)
 
     save(best_regressor, X, output)
     print('Regressor saved.')
@@ -178,3 +182,11 @@ def train(output, update=False, upload=False,
     if upload:
         upload_to_s3(output)
         print('Regressor uploaded.')
+
+
+def train_all(update=False, upload=False):
+    """Run train(output) for all output metrics."""
+    outputs = ['impressions', 'clicks', 'purchases', 'cost_per_impression',
+               'cost_per_click', 'cost_per_purchase']
+    for output in outputs:
+        train(output, update=update, upload=upload)

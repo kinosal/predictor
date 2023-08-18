@@ -126,11 +126,6 @@ def predict(data, output):
 
 def load_from_bucket(key):
     local_file = '/tmp/' + key
-    # connection = S3Connection(aws_access_key_id=config.aws_access_key_id,
-    #                           aws_secret_access_key=config.aws_secret_access_key,
-    #                           is_secure=False)
-    # bucket = connection.get_bucket('cpx-prediction')
-    # bucket.get_key(key).get_contents_to_filename(local_file)
     s3_resource = boto3.resource('s3')
     bucket = s3_resource.Bucket('cpx-prediction')
     bucket.download_file(key, local_file)

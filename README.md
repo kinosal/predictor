@@ -18,7 +18,7 @@ Please submit any [issues](https://github.com/kinosal/predictor/issues) you have
 
 ## Environment
 
-- Python 3.6
+- Python 3.9
 - Flask (web framework)
 - zappa (deployment to AWS lambda)
 - numpy (Python computing package)
@@ -29,9 +29,9 @@ Please submit any [issues](https://github.com/kinosal/predictor/issues) you have
 - Scikit-learn (Python machine learning library)
 - Joblib (Python pipelining library)
 - Psycopg (Python PostgreSQL adapter)
-- Boto 3 (AWS Python SDK)
+- Boto3 (AWS Python SDK)
 
-## Prediction pipeline (as in training.train())
+## Prediction pipeline as in training.train()
 
 1) Load data from CSV or (Postgres) database
 2) Preprocess data

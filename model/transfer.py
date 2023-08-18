@@ -44,7 +44,14 @@ def get_predictions(output):
     return predictions
 
 
-def train(output, models=['linear', 'forest', 'svr']):
+def train(output, models=['linear', 'forest'], print_output=True):
+    """
+    Train and save best model predicting campaign performance.
+
+    Parameters:
+    output (str): The output metric to train the model on (e.g. "impressions")
+    models (list, optional): List of models to train. Defaults to ['linear', 'forest', 'svr'].
+    """
     data = get_predictions(output)
     print('Primary predictions loaded.')
 
@@ -67,10 +74,17 @@ def train(output, models=['linear', 'forest', 'svr']):
         best_regressor.fit(X, y)
     print('Regressor fit.')
 
-    tra.print_results(best_regressor, X, X_scaled, y, y_scaler, X)
+    if print_output:
+        tra.print_results(best_regressor, X, X_scaled, y, y_scaler, X)
 
     tra.save(best_regressor, X, output + '_transfer')
     print('Regressor saved.')
 
-    tra.upload(output + '_transfer')
+    tra.upload_to_s3(output + '_transfer')
     print('Regressor uploaded.')
+
+
+def train_all():
+    """Run train(output) for all output metrics."""
+    for output in ['impressions', 'clicks', 'purchases']:
+        train(output)

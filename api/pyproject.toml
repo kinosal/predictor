@@ -5,16 +5,15 @@ description = ""
 authors = ["Nikolas Schriefer <info@nikolasschriefer.de>"]
 
 [tool.poetry.dependencies]
-python = "^3.8.6"
+python = "^3.9.16"
 flask = "^2.2"
-zappa = "^0.56"
-pandas = "^1.1"
+zappa = "^0.57"
+pandas = "^2.0"
 joblib = "^1.0"
-sklearn = "^0.0"
 scikit-learn = "^1.2"
 
 [tool.poetry.dev-dependencies]
-python-dotenv = "^0.21"
+python-dotenv = "^1.0"
 flake8 = "^6.0"
 coverage = "^7.0"
 
